@@ -120,7 +120,7 @@ Here is exactly what every folder and file in this project does:
     - `seed.ts` - A script that inserts mock data into the database for testing.
 - `uploads/events/` - A folder generated dynamically by the backend to store files related to specific events (like images for challenges).
 - `drizzle.config.ts` - Configuration file for Drizzle ORM (tells it where our schema and database are).
-- `package.json` - Lists the project dependencies (like Elysia, Drizzle, PapaParse).
+- `package.json` - Lists the project dependencies (like Elysia, Drizzle, xlsx).
 
 ---
 
@@ -178,18 +178,24 @@ All data is stored in `sqlite.db`. Here are the tables defined in `src/db/schema
 - **`GET /stats`**: Returns metrics (total teams, active sessions, submission counts).
 - **`POST /event-control`**: Takes an `action` (`start`, `pause`, `stop`, `freeze`, `unfreeze`) to manipulate the active event configuration.
 - **`POST /reset-session`**: Takes a `teamId` and forces them to log out (useful if a team's computer crashes and they are locked out).
-- **`POST /verify-teams/:eventId`**: Upload endpoint for a Google Forms `.csv` file. It reads the CSV via `PapaParse` and updates the `isVerified` column for matching teams.
+- **`POST /verify-teams/:eventId`**: Upload endpoint for `.xlsx` or `.csv` files. It bulk creates new teams or updates `isVerified` for existing ones.
+- **`POST /import-challenges/:eventId`**: Upload endpoint for `.xlsx` or `.csv` files. It parses challenge data, handles flag normalization (`cc{...}`), appends hints, and bulk creates challenges.
 
 ---
 
 ## 9. Organizer Guide (Admin Features)
 
-### How to Verify Teams via CSV
-If you used Google Forms for registration, you can verify teams automatically:
-1. Export your Google Form responses as a `.csv` file. Ensure it has columns named something close to "Team Name" and "Leader Name".
+### How to Bulk Import Teams
+If you used Google Forms or another service for registration:
+1. Export your responses as a `.xlsx` or `.csv` file. Ensure it has columns named something close to "Team Name" and "Leader Name".
 2. Open the Admin Console (`http://localhost:3000/public/admin.html`).
-3. Under **Team Verification**, select your `.csv` file and click **Upload & Verify**.
-4. The server will parse the file, find matching teams in the active event, and mark `isVerified = true` in the database.
+3. Under **Team Verification / Import**, select your file and click **Upload & Verify**.
+4. The server will parse the file, register any missing teams, and mark them as verified.
+
+### How to Bulk Import Challenges
+1. Create an Excel (`.xlsx`) sheet with columns: `Title`, `Description`, `Category`, `Difficulty`, `Points`, `Hint`, and `Flag`. (Don't worry if you miss some columns, the backend has sensible defaults).
+2. Under **Challenge Import**, select your file and upload it.
+3. The server will automatically format all your flags to `cc{answer}`, append hints to descriptions, and import everything instantly.
 
 ### How to Free a Locked Team
 If a team closes their browser abruptly, their session might remain active in the database, preventing them from logging back in.

@@ -1,9 +1,20 @@
+/**
+ * ADMIN API ROUTES
+ * 
+ * FUTURE EXPANSION:
+ * - The admin routes are currently protected by a static Bearer token (`ADMIN_SECRET`).
+ * - For a more secure, multi-admin setup, consider integrating a proper Role-Based Access Control (RBAC) system.
+ *   You can add an `isAdmin` boolean to the `teams` table or create a separate `users` table for administrators,
+ *   and use session/JWT validation here instead of a hardcoded token.
+ * - This file contains the logic for parsing Excel uploads. For massive Excel files (e.g. 100,000+ rows),
+ *   you should move the parsing logic to a background worker (e.g. BullMQ) to avoid blocking the main event loop.
+ */
 import { Elysia, t } from 'elysia';
 import { db } from '../db';
 import { teams, eventConfig, sessions, submissions, challenges, events } from '../db/schema';
 import { eq, sql, and } from 'drizzle-orm';
 import { broadcast } from '../utils/broadcast';
-import Papa from 'papaparse';
+import * as xlsx from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -145,6 +156,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     })
   })
   .post('/verify-teams/:eventId', async ({ params: { eventId }, body }) => {
+    // If the frontend passed 'active' instead of an ID, we resolve the ID of the currently active event
     let eId = parseInt(eventId);
     if (isNaN(eId) || eventId === 'active') {
        const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
@@ -153,26 +165,26 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     }
     
     const file = body.sheet;
-    const text = await file.text();
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = xlsx.read(arrayBuffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
     
-    const parsed = Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => header.trim().toLowerCase().replace(/\s+/g, '_'),
-    });
-
-    if (parsed.errors.length > 0) {
-      return { success: false, errors: parsed.errors };
-    }
-
-    const rows = parsed.data as Record<string, string>[];
+    const rows = xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: "" });
     
     let verifiedCount = 0;
     const notFound: any[] = [];
     
     for (const row of rows) {
-      const tName = (row.team_name || row.teamname || row.team)?.trim();
-      const lName = (row.leader_name || row.leadername || row.leader)?.trim();
+      // Normalize column headers to lowercase and snake_case so it handles "Team Name", "teamName", etc.
+      const normalizedRow: Record<string, string> = {};
+      for (const key in row) {
+        normalizedRow[key.trim().toLowerCase().replace(/\s+/g, '_')] = String(row[key]);
+      }
+      
+      // Look for any standard variation of "Teams" and "Leaders"
+      const tName = (normalizedRow.teams || normalizedRow.team_name || normalizedRow.teamname || normalizedRow.team)?.trim();
+      const lName = (normalizedRow.leaders || normalizedRow.leader_name || normalizedRow.leadername || normalizedRow.leader)?.trim();
       
       if (!tName || !lName) continue;
       
@@ -188,7 +200,18 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
         await db.update(teams).set({ isVerified: true }).where(eq(teams.id, teamInDb.id));
         verifiedCount++;
       } else {
-        notFound.push({ teamName: tName, leaderName: lName });
+        try {
+          await db.insert(teams).values({
+            eventId: eId,
+            teamName: tName,
+            leaderName: lName,
+            members: normalizedRow.members || 'Imported via Admin',
+            isVerified: true
+          });
+          verifiedCount++;
+        } catch (err) {
+          notFound.push({ teamName: tName, leaderName: lName });
+        }
       }
     }
     
@@ -202,4 +225,96 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     body: t.Object({
       sheet: t.File()
     })
+  })
+  .post('/import-challenges/:eventId', async ({ params: { eventId }, body }) => {
+    // If the frontend passed 'active' instead of an ID, we resolve the ID of the currently active event
+    let eId = parseInt(eventId);
+    if (isNaN(eId) || eventId === 'active') {
+       const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
+       if (!activeEvent) return { success: false, error: 'No active event found' };
+       eId = activeEvent.id;
+    }
+
+    const file = body.sheet;
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = xlsx.read(arrayBuffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    
+    const rows = xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: "" });
+
+    let importedCount = 0;
+    
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      // Strip spaces from headers for easier matching (e.g. "Problem Statement" -> "problemstatement")
+      const normalizedRow: Record<string, string> = {};
+      for (const key in row) {
+        normalizedRow[key.trim().toLowerCase().replace(/\s+/g, '')] = String(row[key]);
+      }
+
+      // Read columns with sensible fallbacks
+      let description = normalizedRow['problemstatement'] || normalizedRow['description'] || '';
+      const hint = normalizedRow['hint'] || '';
+      
+      let rawFlag = (normalizedRow['flag'] || normalizedRow['answer'] || normalizedRow['answers'] || '').trim().toLowerCase();
+        
+      // Ensure all answers are formatted precisely as cc{lowercase}
+      if (rawFlag && !rawFlag.startsWith('cc{')) {
+          rawFlag = `cc{${rawFlag}}`;
+      }
+      
+      // Skip empty rows
+      if (!description && !rawFlag) continue;
+
+      // Append hints to the end of the description instead of using a separate database column
+      if (hint) {
+        description += `\n\n**Hint:** ${hint}`;
+      }
+
+      // Default metadata if not provided in the Excel sheet
+      const title = normalizedRow['title'] || `Challenge ${i + 1}`;
+      const category = normalizedRow['category'] || 'Misc';
+      const difficulty = normalizedRow['difficulty'] || 'Medium';
+      const points = parseInt(normalizedRow['points']) || 100;
+
+      await db.insert(challenges).values({
+        eventId: eId,
+        title,
+        description,
+        category,
+        difficulty,
+        points,
+        serverSideFlag: rawFlag
+      });
+      importedCount++;
+    }
+
+    return { success: true, importedCount };
+  }, {
+    body: t.Object({
+      sheet: t.File()
+    })
+  })
+  .delete('/teams/:eventId', async ({ params: { eventId } }) => {
+    // If the frontend passed 'active' instead of an ID, we resolve the ID of the currently active event
+    let eId = parseInt(eventId);
+    if (isNaN(eId) || eventId === 'active') {
+       const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
+       if (!activeEvent) return { success: false, error: 'No active event found' };
+       eId = activeEvent.id;
+    }
+    await db.delete(teams).where(eq(teams.eventId, eId));
+    return { success: true };
+  })
+  .delete('/challenges/:eventId', async ({ params: { eventId } }) => {
+    // If the frontend passed 'active' instead of an ID, we resolve the ID of the currently active event
+    let eId = parseInt(eventId);
+    if (isNaN(eId) || eventId === 'active') {
+       const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
+       if (!activeEvent) return { success: false, error: 'No active event found' };
+       eId = activeEvent.id;
+    }
+    await db.delete(challenges).where(eq(challenges.eventId, eId));
+    return { success: true };
   });

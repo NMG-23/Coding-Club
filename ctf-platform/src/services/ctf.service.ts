@@ -1,3 +1,14 @@
+/**
+ * CORE CTF BUSINESS LOGIC (Service Layer)
+ * 
+ * FUTURE EXPANSION:
+ * - This service handles all heavy lifting (login, flag submissions, scoring).
+ * - If you move to MySQL/Postgres, Drizzle's syntax here (`eq`, `and`, `db.insert`) remains exactly the same!
+ *   You won't need to rewrite any of this business logic, just the schema definitions.
+ * - For advanced CTFs, you might want to implement Dynamic Scoring (where a challenge's points decrease 
+ *   as more teams solve it). You can add a CRON job or a hook inside `submitFlag()` that recalculates 
+ *   points in the `solves` table based on `count(solves)`.
+ */
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { teams, sessions, challenges, submissions, solves, eventConfig, events } from '../db/schema';
@@ -26,7 +37,7 @@ export class CtfService {
 
     if (teamRecord.activeSessionId) {
       const activeSession = await db.select().from(sessions).where(eq(sessions.id, teamRecord.activeSessionId)).get();
-      if (activeSession && activeSession.expiresAt > Date.now()) {
+      if (activeSession && activeSession.expiresAt.getTime() > Date.now()) {
         throw new Error('Active session already in progress');
       }
     }
@@ -49,7 +60,7 @@ export class CtfService {
 
   async validateSession(sessionId: string) {
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    if (!session || session.expiresAt < Date.now()) return null;
+    if (!session || session.expiresAt.getTime() < Date.now()) return null;
     const team = await db.select().from(teams).where(eq(teams.id, session.teamId)).get();
     if (team?.activeSessionId !== sessionId) return null;
     return team;
@@ -62,11 +73,13 @@ export class CtfService {
     if (!event) return { isPaused: true, isEnded: true, scoreboardFrozen: false };
     if (!config) return { isPaused: event.isActive ? false : true, isEnded: !event.isActive, scoreboardFrozen: false };
     
+    // Check if the event has started or ended based on current time
+    // We convert Date objects to timestamps (.getTime()) to compare against Date.now()
     const now = Date.now();
     let isStarted = true;
-    if (event.startTime && now < event.startTime) isStarted = false;
+    if (event.startTime && now < event.startTime.getTime()) isStarted = false;
     let isEnded = false;
-    if (event.endTime && now > event.endTime) isEnded = true;
+    if (event.endTime && now > event.endTime.getTime()) isEnded = true;
 
     return {
       isPaused: config.isPaused || !isStarted,
@@ -107,10 +120,14 @@ export class CtfService {
     let firstBlood = false;
 
     if (isCorrect) {
+      // Check if the team has already solved this challenge
       const existingSolve = await db.select().from(solves).where(and(eq(solves.teamId, teamId), eq(solves.challengeId, challengeId))).get();
       if (!existingSolve) {
+        // If they haven't, check if ANY team has solved it. If no one has, it's a first blood!
         const anySolve = await db.select().from(solves).where(eq(solves.challengeId, challengeId)).limit(1).get();
         if (!anySolve) firstBlood = true;
+        
+        // Insert the solve. We use .onConflictDoNothing() in case two requests from the same team arrive at the exact same millisecond
         await db.insert(solves).values({
           teamId, challengeId, points: challenge.points, solvedAt: now
         }).onConflictDoNothing();
@@ -153,16 +170,21 @@ export class CtfService {
       const ts = scores.get(solve.teamId);
       if (ts) {
         ts.score += solve.points;
-        if (solve.solvedAt > ts.lastSolve) ts.lastSolve = solve.solvedAt;
+        const solveTime = solve.solvedAt.getTime();
+        if (solveTime > ts.lastSolve) ts.lastSolve = solveTime;
       }
     }
 
+    // Convert the Map back to an array for the frontend
     const leaderboard = Array.from(scores.values())
       .filter(t => t.score > 0)
       .sort((a, b) => {
+        // Sort descending by score (highest score first)
         if (b.score !== a.score) return b.score - a.score;
-        return a.lastSolve - b.lastSolve; // earlier solve is better, wait, earlier means smaller solvedAt timestamp.
-        // If a is smaller than b, a-b is negative -> a comes first. Correct.
+        
+        // Tie-breaker: Sort ascending by lastSolve time. 
+        // A smaller timestamp means they reached that score earlier, so they get the higher rank.
+        return a.lastSolve - b.lastSolve;
       });
 
     return { frozen: eventStatus.scoreboardFrozen, leaderboard };

@@ -924,6 +924,29 @@
         transition-duration: 0.01ms !important;
       }
     }
+  .flag-container {
+      margin: 20px 0 20px;
+      max-width: 650px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .flag-input {
+      padding: 14px 16px;
+      border: 1.5px solid #dadce0;
+      border-radius: 8px;
+      font-size: 16px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .flag-input:focus {
+      border-color: #1a73e8;
+    }
+    .flag-input:disabled {
+      background: #f1f3f4;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 
@@ -1025,15 +1048,12 @@
 
         <div class="challenge-description" id="challengeDescription"></div>
 
-        <!-- Interactive MCQ Form -->
-        <form class="mcq-container" id="mcqForm">
-          <div class="mcq-options-grid" id="mcqOptions">
-            <!-- Options dynamically rendered here -->
-          </div>
-
-          <div class="mcq-actions">
-            <button class="button--submit" id="mcqSubmitBtn" type="submit" disabled>
-              Submit Answer
+        <!-- Interactive Flag Form -->
+        <form class="flag-container" id="flagForm">
+          <input type="text" class="flag-input" id="flagInput" placeholder="CC{...}" required />
+          <div class="flag-actions" style="margin-top: 15px;">
+            <button class="button--submit" id="flagSubmitBtn" type="submit">
+              Submit Flag
             </button>
           </div>
         </form>
@@ -1188,9 +1208,9 @@
       challengeTitle: $("#challengeTitle"),
       challengePoints: $("#challengePoints"),
       challengeDescription: $("#challengeDescription"),
-      mcqForm: $("#mcqForm"),
-      mcqOptions: $("#mcqOptions"),
-      mcqSubmitBtn: $("#mcqSubmitBtn"),
+      flagForm: $("#flagForm"),
+        flagInput: $("#flagInput"),
+        flagSubmitBtn: $("#flagSubmitBtn"),
       challengeStatus: $("#challengeStatus"),
       teamName: $("#teamName"),
       leaderName: $("#leaderName"),
@@ -1208,6 +1228,7 @@
       state.solved = new Set();
       state.currentChallengeId = null;
       state.selectedAnswerValue = null;
+        if (elements.flagInput) elements.flagInput.value = "";
       state.rank = "—";
       if (state.pollTimer) {
         clearInterval(state.pollTimer);
@@ -1374,24 +1395,26 @@
       elements.challengePoints.textContent = `${challenge.points} points`;
 
       // Get question text & MCQ options
-      const parsed = getOptionsForChallenge(challenge);
-      elements.challengeDescription.textContent = parsed.questionText;
-
-      // Render MCQ Option Cards
-      renderMCQOptions(parsed.options, isSolved);
-
-      // Status
-      elements.challengeStatus.textContent = isSolved ? "✓ Captured & Solved" : "";
-      elements.challengeStatus.className = "challenge-status" + (isSolved ? " success" : "");
-
-      // Button
-      if (isSolved) {
-        elements.mcqSubmitBtn.disabled = true;
-        elements.mcqSubmitBtn.textContent = "✓ Solved";
-      } else {
-        elements.mcqSubmitBtn.disabled = true;
-        elements.mcqSubmitBtn.textContent = "Submit Answer";
-      }
+      // Setup Description
+        elements.challengeDescription.textContent = challenge.description || "";
+  
+        // Status
+        elements.challengeStatus.textContent = isSolved ? "✓ Captured & Solved" : "";
+        elements.challengeStatus.className = "challenge-status" + (isSolved ? " success" : "");
+  
+        // Input & Button
+        elements.flagInput.value = "";
+        if (isSolved) {
+          elements.flagInput.disabled = true;
+          elements.flagInput.placeholder = "Already solved!";
+          elements.flagSubmitBtn.disabled = true;
+          elements.flagSubmitBtn.textContent = "✓ Solved";
+        } else {
+          elements.flagInput.disabled = false;
+          elements.flagInput.placeholder = "CC{...}";
+          elements.flagSubmitBtn.disabled = false;
+          elements.flagSubmitBtn.textContent = "Submit Flag";
+        }
 
       updateChallengeListSelection();
 
@@ -1454,7 +1477,7 @@
         if (radio) radio.checked = isMatch;
       });
 
-      elements.mcqSubmitBtn.disabled = false;
+      elements.flagSubmitBtn.disabled = false;
       elements.challengeStatus.textContent = "";
       elements.challengeStatus.className = "challenge-status";
     }
@@ -1546,7 +1569,7 @@
       resetState();
       elements.loginForm.reset();
       elements.loginError.textContent = "";
-      elements.mcqForm.reset();
+      if(elements.flagForm) elements.flagForm.reset();
       showLanding();
       if (lenis) {
         lenis.scrollTo(0, { duration: 0.9 });
@@ -1592,7 +1615,7 @@
 
     async function submitAnswer() {
       const challengeId = state.currentChallengeId;
-      const answer = state.selectedAnswerValue;
+      const answer = elements.flagInput.value.trim();
       if (!challengeId || !answer) return;
 
       const challenge = getChallenge(challengeId);
@@ -1602,7 +1625,7 @@
       }
 
       setStatus("Verifying answer...");
-      elements.mcqSubmitBtn.disabled = true;
+      elements.flagSubmitBtn.disabled = true;
 
       try {
         const res = await fetch("/api/arena/submit", {
@@ -1622,11 +1645,7 @@
             const firstBloodText = data.firstBlood ? " (FIRST BLOOD! 🩸)" : "";
             setStatus(`✓ Correct! +${challenge ? challenge.points : 0} points${firstBloodText}`, "success");
             
-            const selectedCard = elements.mcqOptions.querySelector(`[data-value="${answer}"]`);
-            if (selectedCard) {
-              selectedCard.classList.add("is-solved-correct");
-            }
-            elements.mcqSubmitBtn.textContent = "✓ Solved";
+            elements.flagSubmitBtn.textContent = "✓ Solved"; elements.flagInput.disabled = true;
             
             updateStats();
             updateChallengeListSelection();
@@ -1634,16 +1653,16 @@
             await fetchLeaderboard();
           } else {
             setStatus("Incorrect answer. Try again!", "error");
-            elements.mcqSubmitBtn.disabled = false;
+            elements.flagSubmitBtn.disabled = false;
           }
         } else {
           setStatus(data.error || "Submission failed.", "error");
-          elements.mcqSubmitBtn.disabled = false;
+          elements.flagSubmitBtn.disabled = false;
         }
       } catch (err) {
         console.error("Answer submission error:", err);
         setStatus("Submission error. Check server connection.", "error");
-        elements.mcqSubmitBtn.disabled = false;
+        elements.flagSubmitBtn.disabled = false;
       }
     }
 
@@ -1730,7 +1749,7 @@
       handleLogin(team, leader);
     });
 
-    elements.mcqForm.addEventListener("submit", (event) => {
+    elements.flagForm.addEventListener("submit", (event) => {
       event.preventDefault();
       submitAnswer();
     });

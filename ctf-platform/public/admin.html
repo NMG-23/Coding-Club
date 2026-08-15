@@ -36,8 +36,8 @@
     </div>
 
     <div class="card">
-        <h3>Team Verification</h3>
-        <input type="file" id="csvFileInput" accept=".csv" />
+        <h3>Team Verification (Excel/CSV)</h3>
+        <input type="file" id="csvFileInput" accept=".csv, .xlsx" />
         <button onclick="verifyTeams()">Upload & Verify</button>
         <p id="verifyResult" style="margin-top: 10px; font-weight: bold;"></p>
     </div>
@@ -49,7 +49,7 @@
             <input type="text" id="eventName" placeholder="Event Name" />
             <input type="text" id="eventDesc" placeholder="Event Description" />
             <label><input type="checkbox" id="eventActive" checked /> Active</label>
-            <button onclick="createEvent()">Create Event</button>
+            <button onclick="handleCreateEvent()">Create Event</button>
         </div>
         <hr>
         <div style="margin-top: 10px;">
@@ -57,6 +57,20 @@
             <input type="number" id="deleteEventId" placeholder="Event ID" />
             <button onclick="deleteEvent()" style="background-color: #ff4444; color: white;">Wipe Event & Files</button>
         </div>
+    </div>
+
+    <div class="card">
+        <h3>Import Challenges (Excel/CSV)</h3>
+        <p>Upload a sheet with <b>Problem Statement</b>, <b>Hint</b>, and <b>Flag</b> columns.</p>
+        <input type="file" id="challengesFile" accept=".csv, .xlsx" />
+        <button onclick="importChallenges()">Upload Challenges Sheet</button>
+    </div>
+
+    <div class="card">
+        <h3 style="color: #ff4444;">Danger Zone: Database Wipes</h3>
+        <p>These actions are permanent and will wipe associated submissions and scores.</p>
+        <button onclick="wipeTeams()" style="background: #ff4444; color: white; margin-bottom: 10px;">Wipe Teams Database</button>
+        <button onclick="wipeChallenges()" style="background: #ff4444; color: white;">Wipe Challenges Database</button>
     </div>
 
     <script>
@@ -67,23 +81,33 @@
             return fetch(url, opts);
         }
 
-        async function createEvent() {
+        async function handleCreateEvent() {
             const name = document.getElementById('eventName').value;
             const description = document.getElementById('eventDesc').value;
             const isActive = document.getElementById('eventActive').checked;
             
             if (!name) return alert('Event Name is required');
 
-            const res = await fetchAPI('/api/admin/events', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, description, isActive })
-            });
-            const data = await res.json();
-            if (data.success) {
-                alert('Event created successfully with ID: ' + data.event.id);
-            } else {
-                alert('Error creating event: ' + data.error);
+            try {
+                const res = await fetchAPI('/api/admin/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, isActive })
+                });
+                
+                if (!res.ok) {
+                    const text = await res.text();
+                    return alert('Server Error: ' + text);
+                }
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('Event created successfully with ID: ' + data.event.id);
+                } else {
+                    alert('Error creating event: ' + data.error);
+                }
+            } catch (err) {
+                alert('Failed to execute: ' + err.message);
             }
         }
 
@@ -152,7 +176,7 @@
 
         async function verifyTeams() {
             const fileInput = document.getElementById('csvFileInput');
-            if (!fileInput.files.length) return alert('Please select a CSV file first.');
+            if (!fileInput.files.length) return alert('Please select an Excel or CSV file first.');
             
             const formData = new FormData();
             formData.append('sheet', fileInput.files[0]);
@@ -174,6 +198,78 @@
                 }
             } catch (err) {
                 resultElem.innerText = `Upload failed: ${err.message}`;
+            }
+        }
+
+        async function importChallenges() {
+            const fileInput = document.getElementById('challengesFile');
+            if (!fileInput.files.length) return alert('Please select an Excel or CSV file first.');
+            
+            const formData = new FormData();
+            formData.append('sheet', fileInput.files[0]);
+
+            try {
+                const res = await fetchAPI(`/api/admin/import-challenges/active`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!res.ok) {
+                    return alert('Server Error: ' + await res.text());
+                }
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Successfully imported ${data.importedCount} challenges!`);
+                    fileInput.value = '';
+                } else {
+                    alert('Error importing challenges: ' + (data.error || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Failed to import challenges.');
+                console.error(e);
+            }
+        }
+
+        async function wipeTeams() {
+            if (!confirm('🚨 WARNING: Are you absolutely sure? This will delete ALL teams, submissions, and solves for the active event.')) return;
+            
+            try {
+                const res = await fetchAPI(`/api/admin/teams/active`, {
+                    method: 'DELETE'
+                });
+                
+                if (!res.ok) return alert('Server Error: ' + await res.text());
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('All teams have been completely wiped.');
+                    loadStats();
+                }
+            } catch (e) {
+                alert('Failed to wipe teams.');
+                console.error(e);
+            }
+        }
+
+        async function wipeChallenges() {
+            if (!confirm('🚨 WARNING: Are you absolutely sure? This will delete ALL challenges, submissions, and solves for the active event.')) return;
+            
+            try {
+                const res = await fetchAPI(`/api/admin/challenges/active`, {
+                    method: 'DELETE'
+                });
+                
+                if (!res.ok) return alert('Server Error: ' + await res.text());
+                
+                const data = await res.json();
+                if (data.success) {
+                    alert('All challenges have been completely wiped.');
+                    loadStats();
+                }
+            } catch (e) {
+                alert('Failed to wipe challenges.');
+                console.error(e);
             }
         }
 

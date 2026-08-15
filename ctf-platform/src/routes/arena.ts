@@ -1,3 +1,11 @@
+/**
+ * ARENA API ROUTES
+ * 
+ * FUTURE EXPANSION:
+ * - Caching: The `/leaderboard` endpoint calculates scores on-the-fly. For 1,000+ teams, this will bottleneck. 
+ *   You should introduce a Redis cache here that updates ONLY when a user submits a valid flag (cache invalidation).
+ * - Rate Limiting: Add a rate-limiting plugin to `/submit` to prevent automated flag brute-forcing.
+ */
 import { Elysia, t } from 'elysia';
 import { ctfService } from '../services/ctf.service';
 import { db } from '../db';
@@ -22,7 +30,7 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
       set.status = 401;
       throw new Error('Unauthorized');
     }
-    const team = await ctfService.validateSession(sessionToken.value);
+    const team = await ctfService.validateSession(sessionToken.value as string);
     if (!team) {
       set.status = 401;
       throw new Error('Invalid or expired session');

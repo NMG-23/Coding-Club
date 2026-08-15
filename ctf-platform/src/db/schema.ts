@@ -1,3 +1,14 @@
+/**
+ * DATABASE SCHEMA DEFINITIONS
+ * 
+ * FUTURE EXPANSION (MySQL / PostgreSQL):
+ * To migrate this schema to MySQL, you will need to:
+ * 1. Change the import: `import { mysqlTable, varchar, int, timestamp, uniqueIndex } from 'drizzle-orm/mysql-core';`
+ * 2. Replace all instances of `sqliteTable` with `mysqlTable`
+ * 3. Replace all instances of `text` with `varchar(length)` or `text` from mysql-core
+ * 4. Replace `integer('...', { mode: 'boolean' })` with `boolean('...')` from mysql-core
+ * 5. Run `bunx drizzle-kit generate` to create the new migration files for your MySQL database.
+ */
 import { sqliteTable, text, integer, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const events = sqliteTable('events', {

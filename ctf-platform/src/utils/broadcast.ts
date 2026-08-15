@@ -1,8 +1,8 @@
 import { Server } from 'bun';
 
-let serverInstance: Server | null = null;
+let serverInstance: Server<any> | null = null;
 
-export const setServer = (server: Server) => {
+export const setServer = (server: Server<any>) => {
   serverInstance = server;
 };
 
