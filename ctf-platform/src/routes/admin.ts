@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia';
 import { db } from '../db';
 import { teams, eventConfig, sessions, submissions, challenges } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
-import { broadcast } from '../index';
+import { broadcast } from '../utils/broadcast';
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'admin-secret-key';
 

@@ -4,6 +4,7 @@ import { staticPlugin } from '@elysiajs/static';
 import { authRoutes } from './routes/auth';
 import { arenaRoutes } from './routes/arena';
 import { adminRoutes } from './routes/admin';
+import { setServer } from './utils/broadcast';
 
 export const app = new Elysia()
   .use(cors())
@@ -26,9 +27,6 @@ export const app = new Elysia()
 
 console.log(`🦊 CTF Backend is running at http://${app.server?.hostname}:${app.server?.port}`);
 
-// Utility to broadcast events
-export const broadcast = (type: string, payload: any) => {
-  if (app.server) {
-    app.server.publish('events', JSON.stringify({ type, payload }));
-  }
-};
+if (app.server) {
+  setServer(app.server);
+}

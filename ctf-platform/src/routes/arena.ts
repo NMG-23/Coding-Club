@@ -3,7 +3,7 @@ import { ctfService } from '../services/ctf.service';
 import { db } from '../db';
 import { challenges, solves } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { broadcast } from '../index';
+import { broadcast } from '../utils/broadcast';
 
 export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
   // Require session for arena routes
