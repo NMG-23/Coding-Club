@@ -8,9 +8,7 @@ import { setServer } from './utils/broadcast';
 
 export const app = new Elysia()
   .use(cors())
-  .get('/', ({ set }) => {
-    set.redirect = '/public/index.html';
-  })
+  .get('/', ({ redirect }) => redirect('/public/index.html'))
   .use(staticPlugin({
     assets: 'public',
     prefix: '/public'

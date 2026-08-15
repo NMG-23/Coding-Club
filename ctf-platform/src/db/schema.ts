@@ -22,6 +22,7 @@ export const challenges = sqliteTable('challenges', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   title: text('title').notNull(),
   description: text('description').notNull(),
+  options: text('options'), // JSON string array of options: ["Option A", "Option B", "Option C", "Option D"]
   category: text('category').notNull(),
   difficulty: text('difficulty').notNull(),
   points: integer('points').notNull(),

@@ -6,7 +6,10 @@ import { eq, and } from 'drizzle-orm';
 import { broadcast } from '../utils/broadcast';
 
 export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
-  // Require session for arena routes
+  .get('/leaderboard', async () => {
+    return await ctfService.getLeaderboard();
+  })
+  // Require session for authenticated arena routes
   .derive(async ({ cookie: { sessionToken }, set }) => {
     if (!sessionToken.value) {
       set.status = 401;
@@ -24,6 +27,7 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
       id: challenges.id,
       title: challenges.title,
       description: challenges.description,
+      options: challenges.options,
       category: challenges.category,
       difficulty: challenges.difficulty,
       points: challenges.points,
@@ -34,7 +38,21 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
     const teamSolves = await db.select().from(solves).where(eq(solves.teamId, team.id));
     const solvedIds = new Set(teamSolves.map(s => s.challengeId));
 
-    return allChalls.map(c => ({ ...c, solved: solvedIds.has(c.id) }));
+    return allChalls.map(c => {
+      let parsedOptions: string[] = [];
+      if (c.options) {
+        try {
+          parsedOptions = JSON.parse(c.options);
+        } catch (_) {
+          parsedOptions = [];
+        }
+      }
+      return {
+        ...c,
+        options: parsedOptions,
+        solved: solvedIds.has(c.id)
+      };
+    });
   })
   .post('/submit', async ({ body, team, set }) => {
     try {
@@ -60,7 +78,4 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
       challengeId: t.Number(),
       flag: t.String()
     })
-  })
-  .get('/leaderboard', async () => {
-    return await ctfService.getLeaderboard();
   });

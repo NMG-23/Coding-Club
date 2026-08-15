@@ -70,7 +70,9 @@ export class CtfService {
     const challenge = await db.select().from(challenges).where(and(eq(challenges.id, challengeId), eq(challenges.isActive, true))).get();
     if (!challenge) throw new Error('Challenge not found');
 
-    const isCorrect = challenge.serverSideFlag === flag.trim();
+    const submittedNorm = flag.trim().toLowerCase();
+    const expectedNorm = challenge.serverSideFlag.trim().toLowerCase();
+    const isCorrect = submittedNorm === expectedNorm;
     const now = new Date();
 
     await db.insert(submissions).values({
