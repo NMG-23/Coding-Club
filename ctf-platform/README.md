@@ -1,136 +1,198 @@
-# 🚩 CTF Platform Backend (Coding Club)
+# 🚩 Comprehensive CTF Platform Backend Documentation
 
-Welcome to the **High-Performance CTF (Capture The Flag) Platform**! This backend system is engineered to handle 500-600 concurrent participants reliably. It is built from the ground up for speed, simplicity, and strict session integrity.
+Welcome to the definitive, exhaustive guide for the **Coding Club CTF Platform**. 
 
-Whether you are a developer extending the codebase or a first-time organizer looking to run a competition, this guide will explain **everything** you need to know.
+This document serves as the absolute source of truth for the platform. It explains **every single thing**—from how the code is structured, what every file does, how the database is designed, how the API works, and how to run it.
 
----
-
-## 📖 Table of Contents
-1. [What is a CTF?](#-what-is-a-ctf)
-2. [Tech Stack & Architecture](#-tech-stack--architecture)
-3. [Prerequisites & Installation](#-prerequisites--installation)
-4. [Running the Platform](#-running-the-platform)
-5. [Organizer Guide (Admin Console)](#-organizer-guide-admin-console)
-6. [Participant Guide (Arena)](#-participant-guide-arena)
-7. [Database Management (Drizzle Studio)](#-database-management-drizzle-studio)
-8. [Real-time Events (WebSockets)](#-real-time-events-websockets)
+Whether you are an absolute beginner looking to understand the code, or an organizer trying to run an event, everything you need is documented here.
 
 ---
 
-## 🎮 What is a CTF?
-A **Capture The Flag (CTF)** is a cybersecurity and programming competition. Participants (Teams) are given a set of challenges (e.g., finding hidden text on a website, decrypting a secret message, or exploiting a mock vulnerability). 
-
-When a team solves a challenge, they discover a secret "Flag" (usually formatted like `flag{this_is_the_secret}`). They submit this flag to the platform to earn points and climb the real-time leaderboard!
-
----
-
-## 🚀 Tech Stack & Architecture
-
-This backend is built on modern, ultra-fast technologies:
-* **Runtime:** [Bun](https://bun.sh/) - A blazing fast JavaScript runtime that replaces Node.js.
-* **Framework:** [ElysiaJS](https://elysiajs.com/) - A high-performance web framework for handling REST APIs and WebSockets.
-* **Database & ORM:** SQLite + [Drizzle ORM](https://orm.drizzle.team/). We use SQLite in **WAL (Write-Ahead Logging)** mode, meaning it is incredibly fast and requires absolutely zero complex database installation (no need to install PostgreSQL or MySQL).
-* **Testing Client:** Zero-build vanilla HTML/CSS/JS files are provided in the `/public` folder to immediately test the APIs without needing a React frontend.
+## 📖 Master Table of Contents
+1. [Core Concepts: What is this Platform?](#1-core-concepts-what-is-this-platform)
+2. [Tech Stack Breakdown](#2-tech-stack-breakdown)
+3. [Step-by-Step Installation Guide](#3-step-by-step-installation-guide)
+4. [Running the Server & Tools](#4-running-the-server--tools)
+5. [Directory & File Structure (Explained)](#5-directory--file-structure-explained)
+6. [Database Schema (Explained)](#6-database-schema-explained)
+7. [System Workflows (How things actually work)](#7-system-workflows-how-things-actually-work)
+8. [API Reference (All Endpoints)](#8-api-reference-all-endpoints)
+9. [Organizer Guide (Admin features)](#9-organizer-guide-admin-features)
 
 ---
 
-## 🛠️ Prerequisites & Installation
+## 1. Core Concepts: What is this Platform?
 
-### 1. Install Prerequisites
-If you are running this for the first time, you **must** install Bun.
+A **Capture The Flag (CTF)** is a cybersecurity and programming competition. Teams compete to solve puzzles (Challenges). When they solve a puzzle, they find a secret text string called a "Flag". They submit this flag to the platform to earn points.
+
+This specific platform was built to host these competitions for **500-600 concurrent users** reliably. 
+- It tracks teams, challenges, and scores.
+- It prevents cheating by ensuring a team can only log in from **one device at a time**.
+- It updates the scoreboard live on everyone's screen simultaneously using WebSockets.
+- It supports hosting **multiple different events** over time without deleting old data.
+
+---
+
+## 2. Tech Stack Breakdown
+
+This backend is built on ultra-fast, modern technologies:
+* **[Bun](https://bun.sh/):** A modern JavaScript runtime. It replaces Node.js and `npm`. It is incredibly fast, runs TypeScript natively (no compilation needed), and has a built-in SQLite database engine.
+* **[ElysiaJS](https://elysiajs.com/):** The web framework. Think of it like Express.js, but much faster. It handles our HTTP requests (API endpoints) and WebSockets.
+* **[SQLite](https://sqlite.org/):** The database engine. Instead of a complex database server like PostgreSQL, the entire database is stored in a single local file called `sqlite.db`. It runs in WAL (Write-Ahead Logging) mode, making it safe for hundreds of concurrent users.
+* **[Drizzle ORM](https://orm.drizzle.team/):** The tool we use to interact with the database using TypeScript instead of writing raw SQL strings.
+
+---
+
+## 3. Step-by-Step Installation Guide
+
+If you are running this for the first time, follow these exact steps:
+
+### Step 1: Install Bun
+You **must** install Bun to run this project.
 - **Mac/Linux:** Run `curl -fsSL https://bun.sh/install | bash` in your terminal.
 - **Windows:** Run `powershell -c "irm bun.sh/install.ps1 | iex"` in PowerShell.
 
-### 2. Download and Install Dependencies
-Open your terminal, navigate to the folder containing this code, and run:
+### Step 2: Install Project Packages
+Open your terminal, navigate to the `ctf-platform` folder, and run:
 ```bash
 bun install
 ```
-*(This command downloads all the required libraries needed to run the server).*
+*(This reads the `package.json` file and downloads all required code libraries into a `node_modules` folder).*
 
-### 3. Initialize the Database
-Before you can run the server, you need to create the database structure (tables, columns, etc). Run:
+### Step 3: Initialize the Database
+We need to create the `sqlite.db` file and build the tables. Run:
 ```bash
 bun run db:push
 ```
-*(This command reads our schema file and automatically generates a local `sqlite.db` file).*
+*(This commands Drizzle to read our `schema.ts` file and generate the actual database).*
 
-### 4. Seed the Database (Optional but Recommended)
-To test the platform, you'll want some mock data (fake teams, fake challenges, and a mock event). Run:
+### Step 4: Seed the Database (Mock Data)
+To test the platform, you need some fake challenges and teams. Run:
 ```bash
 bun run seed
 ```
-*(This populates the database with an event named `Main CTF 2026`, 3 mock challenges, and 3 test teams).*
+*(This runs the `src/scripts/seed.ts` file, creating a fake event, fake challenges, and teams like `sudoers`).*
 
 ---
 
-## 🏃 Running the Platform
+## 4. Running the Server & Tools
 
-To start the CTF server, simply run:
+### Starting the Main Backend Server
+To start the API and WebSockets server, run:
 ```bash
 bun run dev
 ```
-The server is now live at `http://localhost:3000`. Leave this terminal window open while you are using the platform!
+- The server will start at `http://localhost:3000`.
+- **Test Interfaces:** You can visit `http://localhost:3000/public/index.html` (Participant Arena) or `http://localhost:3000/public/admin.html` (Admin Dashboard) in your browser.
 
----
-
-## 👑 Organizer Guide (Admin Console)
-
-Once the server is running, organizers can manage the entire event via the built-in Admin Console.
-**Access it here:** [http://localhost:3000/public/admin.html](http://localhost:3000/public/admin.html)
-
-### Key Admin Features:
-1. **Multi-Event Architecture:** You can host multiple distinct CTF events over time. Creating a new event automatically allocates a secure folder for challenge files. **WARNING:** Deleting an event is a destructive action that wipes all teams, submissions, and files associated with it.
-2. **Event Controls:** You can **Start**, **Pause**, and **Stop** the active event. If paused, no one can submit flags. You can also **Freeze the Scoreboard** in the final hour to build suspense!
-3. **CSV Team Verification:** If teams registered via Google Forms, export their responses as a `.csv` file. You can upload this directly to the Admin Console to instantly cross-verify their accounts in the database!
-4. **Session Management:** The platform enforces strict **1-Team-1-Device** locking to prevent cheating. If a team's browser crashes and they are locked out, you can click "Reset Session" to free up their account.
-
----
-
-## 🧑‍💻 Participant Guide (Arena)
-
-Participants interact with the Arena.
-**Access it here:** [http://localhost:3000/public/index.html](http://localhost:3000/public/index.html)
-
-### How to test it as a participant:
-If you ran `bun run seed`, use these credentials to log in:
-- **Team Name:** `sudoers`
-- **Leader Name:** `alice`
-
-*(Try logging in with these credentials on a normal browser tab, and then try logging in again on an Incognito tab. The server will reject the second login to protect session integrity!)*
-
-Once logged in, participants can view the active challenges, submit flags, and watch the real-time leaderboard update instantly.
-
----
-
-## 🗄️ Database Management (Drizzle Studio)
-
-Drizzle Studio is an incredible built-in tool that gives you a beautiful web interface to view and edit your SQLite database without writing a single line of SQL code.
-
-**How to open Drizzle Studio:**
-1. Open a **new, separate terminal window** (keep your `bun run dev` server running in the first one).
-2. Ensure you are in the `ctf-platform` folder.
-3. Run this command:
+### Starting Drizzle Studio (Database GUI)
+To view, edit, and manage your database data visually (like an Excel spreadsheet), open a **new** terminal window and run:
 ```bash
 bunx drizzle-kit studio
 ```
-4. Open your browser to the link provided in the terminal (usually `https://local.drizzle.studio`).
-
-**What can you do here?**
-- View all registered teams and their passwords.
-- Manually change a challenge's point value.
-- View the exact timestamp of every flag submission.
-- Manually ban a team by editing their status column.
+- Open your browser to `https://local.drizzle.studio`.
+- You can use this to manually change team passwords, verify accounts, or fix broken data without writing SQL.
 
 ---
 
-## 📡 Real-time Events (WebSockets)
+## 5. Directory & File Structure (Explained)
 
-To make the CTF feel alive, the backend uses WebSockets to instantly push updates to all connected players without them needing to refresh the page.
+Here is exactly what every folder and file in this project does:
 
-If you are building a custom frontend (like React or Vue), connect to `ws://localhost:3000/ws`. The server broadcasts these JSON payloads automatically:
+- `public/` - Contains the vanilla HTML/JS files used to visually test the backend.
+  - `admin.html` - The Organizer dashboard for creating events and verifying teams.
+  - `index.html` - The Participant Arena for logging in and submitting flags.
+  - `app.js` - The frontend logic connecting the HTML to our backend APIs.
+- `src/` - The core backend source code.
+  - `index.ts` - **The Entry Point**. This file initializes the ElysiaJS server, sets up CORS (so frontends can talk to it), mounts the API routes, and starts listening on port 3000.
+  - `db/` - Database connection and definitions.
+    - `index.ts` - Connects Bun to SQLite and enables WAL mode.
+    - `schema.ts` - **The Blueprint**. Defines every single database table, column, and relationship using Drizzle ORM.
+  - `routes/` - API Endpoints (The URLs the frontend talks to).
+    - `admin.ts` - Endpoints for organizers (Creating events, wiping data, getting stats, CSV verification).
+    - `arena.ts` - Endpoints for participants (Fetching challenges, submitting flags, getting the leaderboard).
+    - `auth.ts` - Endpoints for logging in, verifying session tokens, and logging out.
+  - `services/` - Core Business Logic.
+    - `ctf.service.ts` - The "Brain" of the backend. Contains the complex logic for validating logins, checking if flags are correct, assigning points, and building the leaderboard.
+  - `utils/`
+    - `broadcast.ts` - Contains the function used to send live WebSocket messages to all connected players.
+  - `scripts/`
+    - `seed.ts` - A script that inserts mock data into the database for testing.
+- `uploads/events/` - A folder generated dynamically by the backend to store files related to specific events (like images for challenges).
+- `drizzle.config.ts` - Configuration file for Drizzle ORM (tells it where our schema and database are).
+- `package.json` - Lists the project dependencies (like Elysia, Drizzle, PapaParse).
 
-- **Leaderboard Changes:** `{"type": "leaderboard:update", "payload": { ... } }`
-- **First Blood (First team to solve a challenge):** `{"type": "challenge:first_blood", "payload": { "challengeName": "...", "teamName": "...", "eventId": 1 } }`
-- **Event State:** `{"type": "event:state_change", "payload": { "action": "pause|start|stop", "timestamp": 123456789, "eventId": 1 } }`
+---
+
+## 6. Database Schema (Explained)
+
+All data is stored in `sqlite.db`. Here are the tables defined in `src/db/schema.ts`:
+
+1. **`events`**: Represents a CTF competition. Contains `id`, `name`, `startTime`, `endTime`, and `isActive`. (Only one event should be active at a time).
+2. **`teams`**: Represents a registered team. Contains `teamName`, `leaderName`, `status` (active/banned), `activeSessionId` (tracks their login), and an `eventId` linking them to a specific event.
+3. **`sessions`**: Tracks active logins. When a team logs in, a session ID is generated here. Contains `teamId`, `expiresAt`, `ipAddress`.
+4. **`challenges`**: The puzzles. Contains `title`, `description`, `category`, `points`, `serverSideFlag` (the secret answer), and `eventId`.
+5. **`submissions`**: An audit log of every single attempt a team makes (both right and wrong). Contains `teamId`, `challengeId`, `submittedFlag`, and `isCorrect`.
+6. **`solves`**: A record of successful solves used to calculate the leaderboard. Contains `teamId`, `challengeId`, `points`, and `solvedAt` (used for tie-breakers).
+7. **`event_config`**: Runtime toggles for the event. Contains `isPaused` (stops submissions) and `scoreboardFrozen` (hides the leaderboard updates from players).
+
+---
+
+## 7. System Workflows (How things actually work)
+
+### The 1-Team-1-Device Login System
+1. A team enters their Name and Leader Name.
+2. The server (`auth.ts`) queries the database to find the currently active event.
+3. It checks if the team exists in that event.
+4. It checks the `teams.activeSessionId`. If it exists and hasn't expired, the server **rejects** the login (preventing account sharing).
+5. If clear, it creates a new session in the `sessions` table, updates the `teams` table, and sends a session token cookie to the browser.
+
+### The Flag Submission & Live Leaderboard System
+1. A team submits a flag.
+2. The server (`arena.ts` -> `ctf.service.ts`) validates the session.
+3. It checks `event_config` to ensure the CTF isn't "paused" or "ended".
+4. It compares the submitted flag to the `serverSideFlag` (ignoring case/spaces).
+5. If correct, it logs it in the `solves` table.
+6. If it's the **very first time** anyone solved it, the server broadcasts a `challenge:first_blood` WebSocket event.
+7. The server recalculates the entire leaderboard and broadcasts a `leaderboard:update` WebSocket event. Every player's screen updates instantly.
+
+### The Multi-Event & Deletion System
+1. An admin creates a new event. The server creates a database row and creates a physical folder at `uploads/events/{id}`.
+2. If an admin DELETES an event, Drizzle ORM executes a **Cascade Delete**—meaning it automatically deletes all teams, challenges, and solves attached to that `eventId` so no orphaned data is left behind.
+3. The server then uses `fs.rmSync` to permanently delete the event's physical folder from the hard drive.
+
+---
+
+## 8. API Reference (All Endpoints)
+
+### Participant Routes (`/api/auth` & `/api/arena`)
+- **`POST /api/auth/login`**: Takes `{ teamName, leaderName }`. Returns a session cookie.
+- **`POST /api/auth/logout`**: Clears the session cookie and nullifies `activeSessionId` in the database.
+- **`GET /api/arena/challenges`**: Returns all challenges for the active event (requires session).
+- **`POST /api/arena/submit`**: Takes `{ challengeId, flag }`. Checks if the flag is correct and updates scores (requires session).
+- **`GET /api/arena/leaderboard`**: Returns the current sorted scoreboard.
+
+### Admin Routes (`/api/admin`) *(Requires `Authorization: Bearer admin-secret-key`)*
+- **`POST /events`**: Creates a new CTF event and its filesystem directory.
+- **`DELETE /events/:eventId`**: Wipes an event, all its data, and its files.
+- **`GET /stats`**: Returns metrics (total teams, active sessions, submission counts).
+- **`POST /event-control`**: Takes an `action` (`start`, `pause`, `stop`, `freeze`, `unfreeze`) to manipulate the active event configuration.
+- **`POST /reset-session`**: Takes a `teamId` and forces them to log out (useful if a team's computer crashes and they are locked out).
+- **`POST /verify-teams/:eventId`**: Upload endpoint for a Google Forms `.csv` file. It reads the CSV via `PapaParse` and updates the `isVerified` column for matching teams.
+
+---
+
+## 9. Organizer Guide (Admin Features)
+
+### How to Verify Teams via CSV
+If you used Google Forms for registration, you can verify teams automatically:
+1. Export your Google Form responses as a `.csv` file. Ensure it has columns named something close to "Team Name" and "Leader Name".
+2. Open the Admin Console (`http://localhost:3000/public/admin.html`).
+3. Under **Team Verification**, select your `.csv` file and click **Upload & Verify**.
+4. The server will parse the file, find matching teams in the active event, and mark `isVerified = true` in the database.
+
+### How to Free a Locked Team
+If a team closes their browser abruptly, their session might remain active in the database, preventing them from logging back in.
+1. Open the Admin Console.
+2. Look at the **Teams / Session Reset** list.
+3. Find the team and click **Reset Session**. They can now log in again.
