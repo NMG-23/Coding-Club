@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CTF Admin Console</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+        button { margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Admin Console</h1>
+    
+    <div class="card">
+        <h3>Metrics</h3>
+        <p>Teams: <span id="m-teams">0</span></p>
+        <p>Active Sessions: <span id="m-sessions">0</span></p>
+        <p>Total Submissions: <span id="m-subs">0</span></p>
+        <button onclick="loadStats()">Refresh Stats</button>
+    </div>
+
+    <div class="card">
+        <h3>Event Controls</h3>
+        <button onclick="control('start')">Start Event</button>
+        <button onclick="control('pause')">Pause Event</button>
+        <button onclick="control('stop')">Stop Event</button>
+        <hr>
+        <button onclick="control('freeze')">Freeze Scoreboard</button>
+        <button onclick="control('unfreeze')">Unfreeze Scoreboard</button>
+    </div>
+
+    <div class="card">
+        <h3>Teams / Session Reset</h3>
+        <div id="teamsList"></div>
+    </div>
+
+    <script>
+        const SECRET = 'admin-secret-key'; 
+
+        async function fetchAPI(url, opts = {}) {
+            opts.headers = { ...opts.headers, 'Authorization': `Bearer ${SECRET}` };
+            return fetch(url, opts);
+        }
+
+        async function loadStats() {
+            const res = await fetchAPI('/api/admin/stats');
+            if (!res.ok) return alert('Unauthorized or error');
+            const data = await res.json();
+            document.getElementById('m-teams').innerText = data.teams;
+            document.getElementById('m-sessions').innerText = data.activeSessions;
+            document.getElementById('m-subs').innerText = data.submissions;
+            loadTeams();
+        }
+
+        async function loadTeams() {
+            const res = await fetchAPI('/api/admin/teams');
+            const teams = await res.json();
+            const list = document.getElementById('teamsList');
+            list.innerHTML = '';
+            teams.forEach(t => {
+                list.innerHTML += `
+                    <div style="margin-bottom: 5px;">
+                        <strong>${t.teamName}</strong> 
+                        ${t.activeSessionId ? `<button onclick="resetSession(${t.id})">Reset Session</button>` : '(No active session)'}
+                    </div>
+                `;
+            });
+        }
+
+        async function control(action) {
+            await fetchAPI('/api/admin/event-control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+            alert('Action applied: ' + action);
+        }
+
+        async function resetSession(teamId) {
+            await fetchAPI('/api/admin/reset-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ teamId })
+            });
+            alert('Session reset for team ' + teamId);
+            loadStats();
+        }
+
+        loadStats();
+    </script>
+</body>
+</html>

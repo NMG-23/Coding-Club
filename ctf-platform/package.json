@@ -1,0 +1,23 @@
+{
+  "name": "ctf-platform",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "seed": "bun run src/scripts/seed.ts"
+  },
+  "devDependencies": {
+    "@libsql/client": "^0.17.4",
+    "@types/bun": "latest",
+    "drizzle-kit": "latest",
+    "typescript": "latest"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "latest",
+    "@elysiajs/static": "latest",
+    "drizzle-orm": "latest",
+    "elysia": "latest"
+  }
+}

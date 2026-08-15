@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CTF Platform</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .hidden { display: none; }
+        .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>CTF Platform</h1>
+    <div id="msg"></div>
+
+    <div id="loginSection">
+        <h2>Login</h2>
+        <input type="text" id="teamName" placeholder="Team Name"><br><br>
+        <input type="text" id="leaderName" placeholder="Leader Name"><br><br>
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div id="arenaSection" class="hidden">
+        <h2>Welcome, <span id="teamNameDisplay"></span> <button onclick="logout()">Logout</button></h2>
+        
+        <div style="display: flex; gap: 20px;">
+            <div style="flex: 2;">
+                <h3>Challenges</h3>
+                <div id="challengesList"></div>
+            </div>
+            
+            <div style="flex: 1;">
+                <h3>Leaderboard</h3>
+                <div id="leaderboardStatus" style="font-size: 0.8em; color: gray;"></div>
+                <ul id="leaderboardList"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const msg = document.getElementById('msg');
+        
+        async function checkAuth() {
+            const res = await fetch('/api/auth/me');
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('arenaSection').classList.remove('hidden');
+                document.getElementById('teamNameDisplay').innerText = data.teamName;
+                loadChallenges();
+                startPolling();
+                setupWS();
+            }
+        }
+
+        async function login() {
+            const teamName = document.getElementById('teamName').value;
+            const leaderName = document.getElementById('leaderName').value;
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ teamName, leaderName })
+            });
+            const data = await res.json();
+            if (data.success) {
+                msg.innerText = 'Login successful!';
+                msg.className = 'success';
+                checkAuth();
+            } else {
+                msg.innerText = data.error;
+                msg.className = 'error';
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.reload();
+        }
+
+        async function loadChallenges() {
+            const res = await fetch('/api/arena/challenges');
+            if (!res.ok) return;
+            const challenges = await res.json();
+            const list = document.getElementById('challengesList');
+            list.innerHTML = '';
+            challenges.forEach(c => {
+                list.innerHTML += `
+                    <div class="card" style="${c.solved ? 'background: #e6ffe6;' : ''}">
+                        <h4>${c.title} (${c.points} pts) - ${c.difficulty}</h4>
+                        <p>${c.category}</p>
+                        <p>${c.description}</p>
+                        ${c.solved ? '<p class="success">Solved!</p>' : `
+                        <input type="text" id="flag-${c.id}" placeholder="flag{...}">
+                        <button onclick="submitFlag(${c.id})">Submit</button>
+                        `}
+                    </div>
+                `;
+            });
+        }
+
+        async function submitFlag(challengeId) {
+            const flag = document.getElementById(`flag-${challengeId}`).value;
+            const res = await fetch('/api/arena/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ challengeId, flag })
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (data.isCorrect) {
+                    alert(data.firstBlood ? 'First Blood! Correct flag!' : 'Correct flag!');
+                    loadChallenges();
+                } else {
+                    alert('Incorrect flag');
+                }
+            } else {
+                alert('Error: ' + data.error);
+            }
+        }
+
+        async function fetchLeaderboard() {
+            const res = await fetch('/api/arena/leaderboard');
+            if (res.ok) {
+                const data = await res.json();
+                renderLeaderboard(data);
+            }
+        }
+
+        function renderLeaderboard(data) {
+            const lb = document.getElementById('leaderboardList');
+            lb.innerHTML = '';
+            document.getElementById('leaderboardStatus').innerText = data.frozen ? '(Frozen)' : '';
+            data.leaderboard.forEach((t, i) => {
+                lb.innerHTML += `<li>${i+1}. ${t.name} - ${t.score} pts</li>`;
+            });
+        }
+
+        let pollInterval;
+        function startPolling() {
+            fetchLeaderboard();
+            if (!pollInterval) {
+                pollInterval = setInterval(fetchLeaderboard, 3000); // User requested 3-5s polling
+            }
+        }
+
+        function setupWS() {
+            // Also setup WebSocket to log standard events for React UI testing later
+            const ws = new WebSocket(`ws://${window.location.host}/ws`);
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('WS Event Received:', data);
+                if (data.type === 'challenge:first_blood') {
+                    console.log(`FIRST BLOOD on ${data.payload.challengeName} by ${data.payload.teamName}!`);
+                }
+            };
+        }
+
+        checkAuth();
+    </script>
+</body>
+</html>
