@@ -35,12 +35,75 @@
         <div id="teamsList"></div>
     </div>
 
+    <div class="card">
+        <h3>Team Verification</h3>
+        <input type="file" id="csvFileInput" accept=".csv" />
+        <button onclick="verifyTeams()">Upload & Verify</button>
+        <p id="verifyResult" style="margin-top: 10px; font-weight: bold;"></p>
+    </div>
+
+    <div class="card">
+        <h3>Event Management</h3>
+        <div style="margin-bottom: 10px;">
+            <h4>Create Event</h4>
+            <input type="text" id="eventName" placeholder="Event Name" />
+            <input type="text" id="eventDesc" placeholder="Event Description" />
+            <label><input type="checkbox" id="eventActive" checked /> Active</label>
+            <button onclick="createEvent()">Create Event</button>
+        </div>
+        <hr>
+        <div style="margin-top: 10px;">
+            <h4>Delete Event (Destructive)</h4>
+            <input type="number" id="deleteEventId" placeholder="Event ID" />
+            <button onclick="deleteEvent()" style="background-color: #ff4444; color: white;">Wipe Event & Files</button>
+        </div>
+    </div>
+
     <script>
         const SECRET = 'admin-secret-key'; 
 
         async function fetchAPI(url, opts = {}) {
             opts.headers = { ...opts.headers, 'Authorization': `Bearer ${SECRET}` };
             return fetch(url, opts);
+        }
+
+        async function createEvent() {
+            const name = document.getElementById('eventName').value;
+            const description = document.getElementById('eventDesc').value;
+            const isActive = document.getElementById('eventActive').checked;
+            
+            if (!name) return alert('Event Name is required');
+
+            const res = await fetchAPI('/api/admin/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description, isActive })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('Event created successfully with ID: ' + data.event.id);
+            } else {
+                alert('Error creating event: ' + data.error);
+            }
+        }
+
+        async function deleteEvent() {
+            const eventId = document.getElementById('deleteEventId').value;
+            if (!eventId) return alert('Event ID is required');
+            
+            if (!confirm(`Are you absolutely sure you want to delete Event ${eventId}? This will WIPE the database records and all local files for this event!`)) {
+                return;
+            }
+
+            const res = await fetchAPI(`/api/admin/events/${eventId}`, {
+                method: 'DELETE'
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('Event deleted and filesystem wiped successfully');
+            } else {
+                alert('Error deleting event: ' + data.error);
+            }
         }
 
         async function loadStats() {
@@ -85,6 +148,33 @@
             });
             alert('Session reset for team ' + teamId);
             loadStats();
+        }
+
+        async function verifyTeams() {
+            const fileInput = document.getElementById('csvFileInput');
+            if (!fileInput.files.length) return alert('Please select a CSV file first.');
+            
+            const formData = new FormData();
+            formData.append('sheet', fileInput.files[0]);
+            
+            const resultElem = document.getElementById('verifyResult');
+            resultElem.innerText = 'Verifying...';
+
+            try {
+                const res = await fetchAPI('/api/admin/verify-teams/active', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    resultElem.innerText = `Success! Verified: ${data.verifiedCount}, Not Found: ${data.notFoundCount}`;
+                } else {
+                    resultElem.innerText = `Error: ${data.error || 'Check console'}`;
+                }
+            } catch (err) {
+                resultElem.innerText = `Upload failed: ${err.message}`;
+            }
         }
 
         loadStats();

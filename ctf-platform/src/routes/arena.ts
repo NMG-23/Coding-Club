@@ -1,13 +1,20 @@
 import { Elysia, t } from 'elysia';
 import { ctfService } from '../services/ctf.service';
 import { db } from '../db';
-import { challenges, solves } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { challenges, solves, events } from '../db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 import { broadcast } from '../utils/broadcast';
 
 export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
-  .get('/leaderboard', async () => {
-    return await ctfService.getLeaderboard();
+  .get('/leaderboard', async ({ query }) => {
+    let eventId = query.eventId ? parseInt(query.eventId as string) : null;
+    if (!eventId) {
+      // Default to active event
+      const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
+      if (!activeEvent) return { frozen: false, leaderboard: [] };
+      eventId = activeEvent.id;
+    }
+    return await ctfService.getLeaderboard(eventId);
   })
   // Require session for authenticated arena routes
   .derive(async ({ cookie: { sessionToken }, set }) => {
@@ -32,7 +39,7 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
       difficulty: challenges.difficulty,
       points: challenges.points,
       isActive: challenges.isActive
-    }).from(challenges).where(eq(challenges.isActive, true));
+    }).from(challenges).where(and(eq(challenges.isActive, true), eq(challenges.eventId, team.eventId)));
 
     // Get team solves to mark challenges as solved
     const teamSolves = await db.select().from(solves).where(eq(solves.teamId, team.id));
@@ -59,12 +66,10 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
       const res = await ctfService.submitFlag(team.id, body.challengeId, body.flag);
       
       if (res.isCorrect) {
-        // Trigger broadcasts
         if (res.firstBlood) {
-          broadcast('challenge:first_blood', { challengeName: res.challengeName, teamName: team.teamName });
+          broadcast('challenge:first_blood', { challengeName: res.challengeName, teamName: team.teamName, eventId: res.eventId });
         }
-        // Always trigger leaderboard update when score changes
-        const lb = await ctfService.getLeaderboard();
+        const lb = await ctfService.getLeaderboard(res.eventId);
         broadcast('leaderboard:update', lb);
       }
       
