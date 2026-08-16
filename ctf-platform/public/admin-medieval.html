@@ -125,10 +125,10 @@
     .upload-row { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px dashed var(--border-strong); }
     .upload-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
     @media (min-width: 640px) { .upload-row { flex-direction: row; align-items: flex-end; } }
-    .file-select { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .file-select { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
     .file-select label { font-family: var(--font-heading); font-size: 16px; color: var(--border-accent); font-weight: 600; }
     .file-select input[type="file"] { font-size: 14px; color: var(--text-muted); padding: 8px; border: 2px dashed var(--border-strong); border-radius: var(--radius-sm); background: #111; width: 100%; }
-    .upload-feedback { font-family: var(--font-mono); font-size: 12px; margin-top: 8px; color: var(--border-accent); min-height: 18px; }
+    .upload-feedback { position: absolute; top: 100%; left: 0; font-family: var(--font-mono); font-size: 12px; margin-top: 8px; color: var(--border-accent); min-height: 18px; }
 
     .form-group { display: flex; flex-direction: column; gap: 20px; max-width: 480px; }
     .input-field { width: 100%; padding: 12px 16px; border: 2px solid var(--border-strong); background: #111; box-shadow: inset 0 2px 5px rgba(0,0,0,0.8); color: var(--text-main); font-size: 18px; border-radius: var(--radius-sm); }

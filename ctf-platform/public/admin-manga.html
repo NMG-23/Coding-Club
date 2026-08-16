@@ -131,10 +131,10 @@
     .upload-row { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 4px dotted #000; }
     .upload-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
     @media (min-width: 640px) { .upload-row { flex-direction: row; align-items: flex-end; } }
-    .file-select { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+    .file-select { flex: 1; display: flex; flex-direction: column; gap: 12px; position: relative; }
     .file-select label { font-size: 16px; font-weight: 900; color: #000; text-transform: uppercase; }
     .file-select input[type="file"] { font-size: 15px; font-weight: 700; color: #000; padding: 12px; border: 3px solid #000; background: #fff; width: 100%; box-shadow: inset 4px 4px 0 #eee; }
-    .upload-feedback { font-family: var(--font-mono); font-weight: 700; font-size: 14px; margin-top: 8px; color: #000; min-height: 20px; background: #ffeb3b; padding: 4px 8px; border: 2px solid #000; width: fit-content; display: none; }
+    .upload-feedback { position: absolute; top: 100%; left: 0; font-family: var(--font-mono); font-weight: 700; font-size: 14px; margin-top: 8px; color: #000; min-height: 20px; background: #ffeb3b; padding: 4px 8px; border: 2px solid #000; width: fit-content; display: none; }
     .upload-feedback:not(:empty) { display: block; }
 
     .form-group { display: flex; flex-direction: column; gap: 20px; max-width: 480px; }
