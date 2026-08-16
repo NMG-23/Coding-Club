@@ -7,9 +7,27 @@
         body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
         .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
         button { margin: 5px; }
+        .admin-content { display: none; }
+        .login-gate { max-width: 360px; margin: 120px auto; text-align: center; }
+        .login-gate h2 { margin-bottom: 20px; }
+        .login-gate input { width: 100%; padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 12px; }
+        .login-gate button { width: 100%; padding: 10px; font-size: 15px; background: #202124; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
+        .login-gate .error { color: #d93025; font-size: 13px; margin-top: 8px; min-height: 20px; }
     </style>
 </head>
 <body>
+    <!-- Login Gate -->
+    <div class="login-gate" id="loginGate">
+        <h2>🔒 Admin Console</h2>
+        <form id="adminLoginForm">
+            <input type="password" id="secretInput" placeholder="Enter Admin Secret Key" autocomplete="off" autofocus />
+            <button type="submit">Authenticate</button>
+            <div class="error" id="loginError"></div>
+        </form>
+    </div>
+
+    <!-- Admin Content (hidden until authenticated) -->
+    <div class="admin-content" id="adminContent">
     <h1>Admin Console</h1>
     
     <div class="card">
@@ -72,9 +90,50 @@
         <button onclick="wipeTeams()" style="background: #ff4444; color: white; margin-bottom: 10px;">Wipe Teams Database</button>
         <button onclick="wipeChallenges()" style="background: #ff4444; color: white;">Wipe Challenges Database</button>
     </div>
+    </div>
 
     <script>
-        const SECRET = 'admin-secret-key'; 
+        let SECRET = null;
+
+        async function authenticateAdmin(key) {
+            try {
+                const res = await fetch('/api/admin/stats', {
+                    headers: { 'Authorization': `Bearer ${key}` }
+                });
+                return res.ok;
+            } catch (_) {
+                return false;
+            }
+        }
+
+        async function tryLogin(key) {
+            const errorEl = document.getElementById('loginError');
+            errorEl.textContent = '';
+            if (!key) { errorEl.textContent = 'Please enter a key.'; return; }
+
+            const valid = await authenticateAdmin(key);
+            if (valid) {
+                SECRET = key;
+                sessionStorage.setItem('admin_secret', key);
+                document.getElementById('loginGate').style.display = 'none';
+                document.getElementById('adminContent').style.display = 'block';
+                loadStats();
+            } else {
+                errorEl.textContent = 'Invalid secret key. Access denied.';
+                sessionStorage.removeItem('admin_secret');
+            }
+        }
+
+        document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            tryLogin(document.getElementById('secretInput').value.trim());
+        });
+
+        // Auto-login if key was saved from a previous session in this tab
+        (async () => {
+            const saved = sessionStorage.getItem('admin_secret');
+            if (saved) await tryLogin(saved);
+        })();
 
         async function fetchAPI(url, opts = {}) {
             opts.headers = { ...opts.headers, 'Authorization': `Bearer ${SECRET}` };
@@ -273,7 +332,6 @@
             }
         }
 
-        loadStats();
     </script>
 </body>
 </html>
