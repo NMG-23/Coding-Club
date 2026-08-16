@@ -21,4 +21,4 @@ import * as schema from './schema';
 const sqlite = new Database('sqlite.db');
 sqlite.exec('PRAGMA journal_mode = WAL;');
 
-export const db = drizzle(sqlite, { schema }
+export const db = drizzle(sqlite, { schema });
