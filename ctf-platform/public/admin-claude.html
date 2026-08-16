@@ -162,7 +162,8 @@
           <option value="manga-color">Theme: Pop-Art (Color Manga)</option>
           <option value="crystal">Theme: Imperial Crystal (Purple/White)</option>
         </select>
-        <button class="btn btn--sm" onclick="openSecretModal()">Configure Key</button>
+        <button class="btn btn--sm" onclick="openSecretModal()">Login</button>
+        <a href="#" class="link" onclick="adminLogout(); return false;">Logout</a>
         <a href="/public/index.html" class="link">Return to Arena</a>
       </div>
     </header>
@@ -281,17 +282,16 @@
       }, 350);
     }
 
-    let ADMIN_SECRET = localStorage.getItem("ctf_admin_secret") || "admin-secret-key";
     let teamRecords = [];
     let wsInstance = null;
 
     async function apiRequest(endpoint, options = {}) {
-      options.headers = { ...(options.headers || {}), "Authorization": `Bearer ${ADMIN_SECRET}` };
+      options.credentials = "include";
       try {
         const response = await fetch(endpoint, options);
         let data = null;
         const contentType = response.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) { data = await response.json(); } 
+        if (contentType.includes("application/json")) { data = await response.json(); }
         else { const text = await response.text(); try { data = JSON.parse(text); } catch (_) { data = { text }; } }
         return { ok: response.ok, status: response.status, data };
       } catch (err) { return { ok: false, status: 0, error: err.message || "Network Error" }; }
@@ -341,11 +341,24 @@
     document.getElementById("sysModal").addEventListener("click", (e) => { if (e.target.id === "sysModal") closeModal(); });
 
     function openSecretModal() {
-      const body = `<input class="input-field" id="modalSecretInput" type="password" value="${ADMIN_SECRET}">`;
-      openModalUI("Configure Key", "Set the Bearer token for API authentication.", () => {
+      const body = `<input class="input-field" id="modalSecretInput" type="password" placeholder="Enter admin secret">`;
+      openModalUI("Admin Login", "Authenticate with the admin secret key.", async () => {
         const val = document.getElementById("modalSecretInput").value.trim();
-        if (val) { ADMIN_SECRET = val; localStorage.setItem("ctf_admin_secret", val); notify("Key updated"); loadAllData(); }
+        if (!val) return;
+        try {
+          const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ secret: val }), credentials: "include" });
+          const data = await res.json();
+          if (res.ok && data.success) { notify("Authenticated successfully."); loadAllData(); }
+          else { notify(data.error || "Authentication failed."); }
+        } catch (err) { notify("Login request failed."); }
       }, body);
+    }
+
+    async function adminLogout() {
+      try {
+        await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+        notify("Logged out.");
+      } catch (_) { }
     }
 
     async function loadStats() {
