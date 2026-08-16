@@ -850,7 +850,7 @@
           <option value="manga-color">Theme: Pop-Art (Color Manga)</option>
           <option value="crystal">Theme: Imperial Crystal (Purple/White)</option>
         </select>
-        <button class="btn btn--sm" onclick="openSecretModal()">Configure Key</button>
+        <a href="#" class="link" onclick="adminLogout(); return false;">Logout</a>
         <a href="/public/index.html" class="link">Return to Arena</a>
       </div>
     </header>
@@ -983,12 +983,11 @@
       }, 350);
     }
 
-    let ADMIN_SECRET = localStorage.getItem("ctf_admin_secret") || "admin-secret-key";
     let teamRecords = [];
     let wsInstance = null;
 
     async function apiRequest(endpoint, options = {}) {
-      options.headers = { ...(options.headers || {}), "Authorization": `Bearer ${ADMIN_SECRET}` };
+      options.credentials = "include";
       try {
         const response = await fetch(endpoint, options);
         let data = null;
@@ -1042,17 +1041,16 @@
     document.getElementById("modalConfirmBtn").addEventListener("click", () => { if (onConfirmCb) onConfirmCb(); closeModal(); });
     document.getElementById("sysModal").addEventListener("click", (e) => { if (e.target.id === "sysModal") closeModal(); });
 
-    function openSecretModal() {
-      const body = `<input class="input-field" id="modalSecretInput" type="password" value="${ADMIN_SECRET}">`;
-      openModalUI("Configure Key", "Set the Bearer token for API authentication.", () => {
-        const val = document.getElementById("modalSecretInput").value.trim();
-        if (val) { ADMIN_SECRET = val; localStorage.setItem("ctf_admin_secret", val); notify("Key updated"); loadAllData(); }
-      }, body);
+    async function adminLogout() {
+      try {
+        await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+        window.location.href = "/public/admin-login.html";
+      } catch (_) { }
     }
 
     async function loadStats() {
       const res = await apiRequest("/api/admin/stats");
-      if (!res.ok) { if (res.status === 401) notify("Unauthorized (401). Present valid key."); return; }
+      if (!res.ok) return;
       document.getElementById("m-teams").textContent = res.data?.teams ?? 0;
       document.getElementById("m-sessions").textContent = res.data?.activeSessions ?? 0;
       document.getElementById("m-subs").textContent = res.data?.submissions ?? 0;

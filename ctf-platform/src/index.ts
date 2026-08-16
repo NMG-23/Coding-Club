@@ -14,12 +14,23 @@ import { cors } from '@elysiajs/cors';
 import { staticPlugin } from '@elysiajs/static';
 import { authRoutes } from './routes/auth';
 import { arenaRoutes } from './routes/arena';
-import { adminRoutes } from './routes/admin';
+import { adminRoutes, verifyAdminToken } from './routes/admin';
 import { setServer } from './utils/broadcast';
 
 export const app = new Elysia()
   .use(cors())
   .onRequest(({ request, set }) => {
+    const url = new URL(request.url);
+    // Protect all admin HTML pages (except the login page)
+    if (url.pathname.startsWith('/public/admin') && url.pathname.endsWith('.html') && url.pathname !== '/public/admin-login.html') {
+      const cookieHeader = request.headers.get('cookie') || '';
+      const match = cookieHeader.match(/adminSession=([^;]+)/);
+      const token = match ? match[1] : null;
+      if (!token || !verifyAdminToken(token)) {
+        return Response.redirect('/public/admin-login.html', 302);
+      }
+    }
+
     // CSRF Protection: verify Origin or Referer for mutating requests
     if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
       const origin = request.headers.get('origin');

@@ -608,7 +608,6 @@
           <option value="manga-color">Theme: Pop-Art (Color Manga)</option>
           <option value="crystal">Theme: Imperial Crystal (Purple/White)</option>
         </select>
-        <button class="btn btn--sm" onclick="openSecretModal()">Login</button>
         <a href="#" class="link" onclick="adminLogout(); return false;">Logout</a>
         <a href="/public/index.html" class="link">Return to Arena</a>
       </div>
@@ -800,30 +799,16 @@
     document.getElementById("modalConfirmBtn").addEventListener("click", () => { if (onConfirmCb) onConfirmCb(); closeModal(); });
     document.getElementById("sysModal").addEventListener("click", (e) => { if (e.target.id === "sysModal") closeModal(); });
 
-    function openSecretModal() {
-      const body = `<input class="input-field" id="modalSecretInput" type="password" placeholder="Enter admin secret">`;
-      openModalUI("Admin Login", "Authenticate with the admin secret key.", async () => {
-        const val = document.getElementById("modalSecretInput").value.trim();
-        if (!val) return;
-        try {
-          const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ secret: val }), credentials: "include" });
-          const data = await res.json();
-          if (res.ok && data.success) { notify("Authenticated successfully."); loadAllData(); }
-          else { notify(data.error || "Authentication failed."); }
-        } catch (err) { notify("Login request failed."); }
-      }, body);
-    }
-
     async function adminLogout() {
       try {
         await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
-        notify("Logged out.");
+        window.location.href = "/public/admin-login.html";
       } catch (_) { }
     }
 
     async function loadStats() {
       const res = await apiRequest("/api/admin/stats");
-      if (!res.ok) { if (res.status === 401) notify("Unauthorized (401). Present valid key."); return; }
+      if (!res.ok) return;
       document.getElementById("m-teams").textContent = res.data?.teams ?? 0;
       document.getElementById("m-sessions").textContent = res.data?.activeSessions ?? 0;
       document.getElementById("m-subs").textContent = res.data?.submissions ?? 0;

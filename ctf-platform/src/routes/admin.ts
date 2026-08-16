@@ -24,7 +24,7 @@ const ADMIN_SECRET = process.env.ADMIN_SECRET || 'mkc';
  * Generate an HMAC-SHA256 signature of the admin secret.
  * This is used as the cookie value so the actual secret is never stored client-side.
  */
-function signAdminToken(): string {
+export function signAdminToken(): string {
   const hasher = new Bun.CryptoHasher('sha256', ADMIN_SECRET);
   hasher.update('admin-session-token');
   return hasher.digest('hex');
@@ -33,7 +33,7 @@ function signAdminToken(): string {
 /**
  * Verify that a cookie value matches the expected HMAC signature.
  */
-function verifyAdminToken(token: string): boolean {
+export function verifyAdminToken(token: string): boolean {
   return token === signAdminToken();
 }
 
@@ -53,7 +53,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     adminSession.set({
       value: signAdminToken(),
       httpOnly: true,
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 12 * 60 * 60, // 12 hours
       path: '/'
     });
