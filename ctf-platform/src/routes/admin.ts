@@ -18,7 +18,7 @@ import * as xlsx from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'admin-secret-key';
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'mkc';
 
 async function getAdminEventId(queryEventId?: string) {
   if (queryEventId) return parseInt(queryEventId);
@@ -75,20 +75,20 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     if (!eventId) return { teams: 0, activeSessions: 0, submissions: 0, challenges: 0 };
 
     const totalTeams = await db.select({ count: sql<number>`count(*)` }).from(teams).where(eq(teams.eventId, eventId)).get();
-    
+
     // active sessions for this event
     const activeSessions = await db.select({ count: sql<number>`count(*)` })
       .from(sessions)
       .innerJoin(teams, eq(sessions.teamId, teams.id))
       .where(eq(teams.eventId, eventId))
       .get();
-      
+
     const totalSubmissions = await db.select({ count: sql<number>`count(*)` })
       .from(submissions)
       .innerJoin(teams, eq(submissions.teamId, teams.id))
       .where(eq(teams.eventId, eventId))
       .get();
-      
+
     const totalChallenges = await db.select({ count: sql<number>`count(*)` }).from(challenges).where(eq(challenges.eventId, eventId)).get();
 
     return {
@@ -140,7 +140,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     } else {
       await db.insert(eventConfig).values({ ...updateData, eventId, isPaused: false, scoreboardFrozen: false });
     }
-    
+
     if (Object.keys(eventUpdateData).length > 0) {
       await db.update(events).set(eventUpdateData).where(eq(events.id, eventId));
     }
@@ -159,35 +159,35 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     // If the frontend passed 'active' instead of an ID, we resolve the ID of the currently active event
     let eId = parseInt(eventId);
     if (isNaN(eId) || eventId === 'active') {
-       const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
-       if (!activeEvent) return { success: false, error: 'No active event found' };
-       eId = activeEvent.id;
+      const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
+      if (!activeEvent) return { success: false, error: 'No active event found' };
+      eId = activeEvent.id;
     }
-    
+
     const file = body.sheet;
     const arrayBuffer = await file.arrayBuffer();
     const workbook = xlsx.read(arrayBuffer, { type: 'array' });
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
-    
+
     const rows = xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: "" });
-    
+
     let verifiedCount = 0;
     const notFound: any[] = [];
-    
+
     for (const row of rows) {
       // Normalize column headers to lowercase and snake_case so it handles "Team Name", "teamName", etc.
       const normalizedRow: Record<string, string> = {};
       for (const key in row) {
         normalizedRow[key.trim().toLowerCase().replace(/\s+/g, '_')] = String(row[key]);
       }
-      
+
       // Look for any standard variation of "Teams" and "Leaders"
       const tName = (normalizedRow.teams || normalizedRow.team_name || normalizedRow.teamname || normalizedRow.team)?.trim();
       const lName = (normalizedRow.leaders || normalizedRow.leader_name || normalizedRow.leadername || normalizedRow.leader)?.trim();
-      
+
       if (!tName || !lName) continue;
-      
+
       const teamInDb = await db.select().from(teams).where(
         and(
           sql`lower(${teams.teamName}) = ${tName.toLowerCase()}`,
@@ -195,7 +195,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
           eq(teams.eventId, eId)
         )
       ).get();
-      
+
       if (teamInDb) {
         await db.update(teams).set({ isVerified: true }).where(eq(teams.id, teamInDb.id));
         verifiedCount++;
@@ -214,7 +214,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
         }
       }
     }
-    
+
     return {
       success: true,
       verifiedCount,
@@ -230,9 +230,9 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     // If the frontend passed 'active' instead of an ID, we resolve the ID of the currently active event
     let eId = parseInt(eventId);
     if (isNaN(eId) || eventId === 'active') {
-       const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
-       if (!activeEvent) return { success: false, error: 'No active event found' };
-       eId = activeEvent.id;
+      const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
+      if (!activeEvent) return { success: false, error: 'No active event found' };
+      eId = activeEvent.id;
     }
 
     const file = body.sheet;
@@ -240,11 +240,11 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     const workbook = xlsx.read(arrayBuffer, { type: 'array' });
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
-    
+
     const rows = xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: "" });
 
     let importedCount = 0;
-    
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       // Strip spaces from headers for easier matching (e.g. "Problem Statement" -> "problemstatement")
@@ -256,14 +256,14 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
       // Read columns with sensible fallbacks
       let description = normalizedRow['problemstatement'] || normalizedRow['description'] || '';
       const hint = normalizedRow['hint'] || '';
-      
+
       let rawFlag = (normalizedRow['flag'] || normalizedRow['answer'] || normalizedRow['answers'] || '').trim().toLowerCase();
-        
+
       // Ensure all answers are formatted precisely as cc{lowercase}
       if (rawFlag && !rawFlag.startsWith('cc{')) {
-          rawFlag = `cc{${rawFlag}}`;
+        rawFlag = `cc{${rawFlag}}`;
       }
-      
+
       // Skip empty rows
       if (!description && !rawFlag) continue;
 
@@ -300,9 +300,9 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     // If the frontend passed 'active' instead of an ID, we resolve the ID of the currently active event
     let eId = parseInt(eventId);
     if (isNaN(eId) || eventId === 'active') {
-       const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
-       if (!activeEvent) return { success: false, error: 'No active event found' };
-       eId = activeEvent.id;
+      const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
+      if (!activeEvent) return { success: false, error: 'No active event found' };
+      eId = activeEvent.id;
     }
     await db.delete(teams).where(eq(teams.eventId, eId));
     return { success: true };
@@ -311,9 +311,9 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     // If the frontend passed 'active' instead of an ID, we resolve the ID of the currently active event
     let eId = parseInt(eventId);
     if (isNaN(eId) || eventId === 'active') {
-       const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
-       if (!activeEvent) return { success: false, error: 'No active event found' };
-       eId = activeEvent.id;
+      const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
+      if (!activeEvent) return { success: false, error: 'No active event found' };
+      eId = activeEvent.id;
     }
     await db.delete(challenges).where(eq(challenges.eventId, eId));
     return { success: true };
