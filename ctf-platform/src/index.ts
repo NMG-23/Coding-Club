@@ -19,11 +19,31 @@ import { setServer } from './utils/broadcast';
 
 export const app = new Elysia()
   .use(cors())
-  .get('/', ({ redirect }) => redirect('/public/index.html'))
+  .get('/', () => new Response(Bun.file('public/index.html'), {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  }))
+  .get('/public/index.html', () => new Response(Bun.file('public/index.html'), {
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  }))
   .use(staticPlugin({
     assets: 'public',
-    prefix: '/public'
+    prefix: '/public',
+    maxAge: 0,
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    }
   }))
+
   .ws('/ws', {
     open(ws) {
       ws.subscribe('events');
