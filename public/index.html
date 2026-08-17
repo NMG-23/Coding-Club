@@ -1,0 +1,1674 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f5f4">
+  <meta name="description" content="Capture the Flag event platform">
+  <title>CTF · Arena</title>
+  <link rel="stylesheet" href="https://unpkg.com/lenis@1.3.11/dist/lenis.css">
+
+  <style>
+    :root {
+      --bg: #f3f5f4;
+      --surface: #ffffff;
+      --surface-soft: #f7f9f8;
+      --text: #151b1b;
+      --muted: #7b8585;
+      --line: #dde3e0;
+      --accent: #789f8b;
+      --accent-dark: #527a66;
+      --accent-soft: #e2ece6;
+      --primary: #1a73e8;
+      --primary-dark: #1769d3;
+      --primary-soft: #e8f0fe;
+      --danger: #d93025;
+      --success: #188038;
+      --shadow: 0 22px 70px rgba(23, 34, 29, 0.08);
+      --shadow-sm: 0 8px 30px rgba(23, 34, 29, 0.06);
+      --radius: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html.lenis, html.lenis body {
+      height: auto;
+    }
+
+
+    body {
+      margin: 0;
+      min-width: 280px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body.modal-open {
+      overflow: hidden;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 3px solid var(--accent-soft);
+      outline-offset: 2px;
+    }
+
+    .shell {
+      width: min(1120px, 90vw);
+      margin-inline: auto;
+    }
+
+    /* ---------- Shared ---------- */
+
+    .brand {
+      margin: 0;
+      color: var(--text);
+      font-size: 17px;
+      font-weight: 850;
+      letter-spacing: -0.055em;
+      text-decoration: none;
+    }
+
+    .button {
+      border: 0;
+      border-radius: 0;
+      padding: 8px 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 760;
+      transition: color 160ms ease, background 160ms ease;
+    }
+
+    .button:hover {
+      color: var(--accent-dark);
+    }
+
+    .button:active {
+      transform: none;
+    }
+
+    .button--primary {
+      background: var(--text);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 13px;
+    }
+
+    .button--primary:hover {
+      color: #fff;
+      opacity: 0.92;
+    }
+
+    /* ---------- Landing ---------- */
+
+    .site-header {
+      height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .institution {
+      color: var(--text);
+      font-size: 17px;
+      font-weight: 850;
+      letter-spacing: -0.055em;
+    }
+
+    .hero {
+      min-height: calc(100svh - 78px);
+      display: grid;
+      place-items: center;
+      padding: 30px 0 100px;
+    }
+
+    .hero__inner {
+      width: min(760px, 100%);
+      text-align: center;
+    }
+
+    .hero h1 {
+      margin: 0 0 20px;
+      font-size: clamp(64px, 10vw, 118px);
+      line-height: 0.83;
+      letter-spacing: -0.09em;
+      font-weight: 850;
+    }
+
+    .hero p {
+      max-width: 470px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .hero__actions {
+      display: flex;
+      justify-content: center;
+      gap: 9px;
+      margin-top: 30px;
+    }
+
+    .section-divider {
+      width: min(1120px, 90vw);
+      height: 1px;
+      margin-inline: auto;
+      background: var(--line);
+    }
+
+    .section {
+      padding: 70px 0;
+    }
+
+    .section__head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .section h2 {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+    }
+
+    .section__head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .feature-card {
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+      transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: #cbd6d1;
+      box-shadow: 0 12px 36px rgba(23, 34, 29, 0.09);
+    }
+
+    .feature-card__number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      margin-bottom: 16px;
+    }
+
+    .feature-card h3 {
+      margin: 0 0 8px;
+      font-size: 20px;
+      font-weight: 750;
+      letter-spacing: -0.03em;
+      color: var(--text);
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    ::-webkit-scrollbar { display: none; }
+    * { scrollbar-width: none; }
+    html.lenis, html.lenis body { height: auto; }
+    .lenis.lenis-smooth { scroll-behavior: auto !important; }
+    .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+    .lenis.lenis-stopped { overflow: hidden; }
+
+
+    .site-footer {
+      padding: 30px 0 45px;
+      color: #98a19f;
+      font-size: 10px;
+      text-align: center;
+    }
+
+    /* ---------- Login modal ---------- */
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(18, 25, 22, 0.32);
+      backdrop-filter: blur(14px);
+    }
+
+    .modal.is-open {
+      display: flex;
+    }
+
+    .modal__card {
+      width: min(430px, 100%);
+      padding: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 28px;
+      background: var(--surface);
+      box-shadow: 0 35px 100px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal__top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal h2 {
+      margin: 0;
+      font-size: 25px;
+      letter-spacing: -0.055em;
+    }
+
+    .modal__close {
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 11px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 19px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .form-label {
+      display: block;
+      margin: 18px 0 7px;
+      color: #65716d;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .input {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      outline: none;
+      background: #fafbfa;
+      color: var(--text);
+      font-size: 14px;
+      transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    .input:focus {
+      border-color: #a8beb0;
+      background: #fff;
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+
+    .form-error {
+      min-height: 19px;
+      margin-top: 9px;
+      color: var(--danger);
+      font-size: 11px;
+    }
+
+    .modal__submit {
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .modal__note {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    /* ---------- CTF Arena App ---------- */
+
+    .app {
+      display: none;
+      min-height: 100svh;
+      background: #fff;
+      color: #202124;
+    }
+
+    .app.is-active {
+      display: block;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #dadce0;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+    }
+
+    .app-header__inner {
+      width: min(1240px, 92vw);
+      margin-inline: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .app-header .brand {
+      color: #202124;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+    }
+
+    .app-header__tools {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 18px;
+      min-width: 0;
+      color: #5f6368;
+    }
+
+    .team-pill,
+    .score-pill {
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .team-pill b {
+      color: #202124;
+      font-weight: 600;
+      margin-right: 5px;
+    }
+
+    .score-pill strong {
+      color: #202124;
+      margin-left: 3px;
+      font-weight: 600;
+    }
+
+    .app-header .button {
+      padding: 0;
+      color: #5f6368;
+      background: transparent;
+      font-size: 12px;
+    }
+
+    .app-header .button:hover {
+      color: #202124;
+    }
+
+    .arena {
+      width: min(1240px, 92vw);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 210px minmax(0, 720px) 160px;
+      justify-content: space-between;
+      gap: 40px;
+    }
+
+    .panel {
+      padding: 34px 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .panel-title {
+      margin: 0 0 14px;
+      color: #5f6368;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .challenge-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .challenge-button {
+      width: 100%;
+      padding: 10px 12px;
+      border: 0;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: transparent;
+      color: #3c4043;
+      text-align: left;
+      font-size: 12.5px;
+      transition: background 140ms ease, color 140ms ease;
+    }
+
+    .challenge-button:hover {
+      background: #f1f3f4;
+      color: #202124;
+    }
+
+    .challenge-button.is-active {
+      background: #e8f0fe;
+      color: #174ea6;
+      font-weight: 600;
+    }
+
+    .challenge-button.is-solved::after {
+      content: "✓";
+      margin-left: 8px;
+      color: #188038;
+      font-weight: 700;
+    }
+
+    .challenge-button small {
+      color: #80868b;
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .challenge-main {
+      min-height: calc(100svh - 64px);
+      padding: 46px 0 45px;
+      display: flex;
+      flex-direction: column;
+      border: 0;
+    }
+
+    .challenge-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .challenge-category {
+      color: #5f6368;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .challenge-difficulty-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-radius: 6px;
+      background: #f1f3f4;
+      color: #5f6368;
+    }
+
+    .challenge-title {
+      margin: 4px 0 6px;
+      color: #202124;
+      font-size: 32px;
+      line-height: 1.15;
+      letter-spacing: -0.04em;
+      font-weight: 700;
+    }
+
+    .challenge-points {
+      color: #5f6368;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .challenge-description {
+      max-width: 650px;
+      margin: 24px 0 20px;
+      color: #202124;
+      font-size: 15px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    /* ---------- MCQ Options Container ---------- */
+
+    .mcq-container {
+      margin: 20px 0 20px;
+      max-width: 650px;
+    }
+
+    .mcq-options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mcq-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 16px;
+      border: 1.5px solid #dadce0;
+      border-radius: 12px;
+      background: #fafbfa;
+      cursor: pointer;
+      transition: border-color 140ms ease, background 140ms ease, transform 120ms ease, box-shadow 140ms ease;
+      user-select: none;
+      position: relative;
+    }
+
+    .mcq-card:hover {
+      border-color: #a8beb0;
+      background: #fff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+    }
+
+    .mcq-card.is-selected {
+      border-color: #1a73e8;
+      background: #f0f6ff;
+      box-shadow: 0 0 0 1px #1a73e8;
+    }
+
+    .mcq-card.is-solved-correct {
+      border-color: #188038;
+      background: #edf7ed;
+    }
+
+    .mcq-card.is-disabled {
+      cursor: default;
+      opacity: 0.88;
+      transform: none !important;
+    }
+
+    .mcq-radio {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .mcq-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      background: #eef1f0;
+      color: #5f6368;
+      transition: background 140ms ease, color 140ms ease;
+      flex-shrink: 0;
+    }
+
+    .mcq-card.is-selected .mcq-badge {
+      background: #1a73e8;
+      color: #fff;
+    }
+
+    .mcq-card.is-solved-correct .mcq-badge {
+      background: #188038;
+      color: #fff;
+    }
+
+    .mcq-label {
+      font-size: 14px;
+      color: #202124;
+      line-height: 1.45;
+      flex: 1;
+      font-weight: 450;
+      word-break: break-word;
+    }
+
+    .mcq-card.is-selected .mcq-label {
+      color: #174ea6;
+      font-weight: 550;
+    }
+
+    .mcq-check-circle {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid #bdc1c6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 140ms ease;
+      flex-shrink: 0;
+    }
+
+    .mcq-card.is-selected .mcq-check-circle {
+      border-color: #1a73e8;
+      background: #1a73e8;
+    }
+
+    .mcq-card.is-selected .mcq-check-circle::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .mcq-card.is-solved-correct .mcq-check-circle {
+      border-color: #188038;
+      background: #188038;
+    }
+
+    .mcq-card.is-solved-correct .mcq-check-circle::after {
+      content: "✓";
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .mcq-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .button--submit {
+      height: 46px;
+      padding: 0 24px;
+      border-radius: 9px;
+      background: #1a73e8;
+      color: #fff;
+      font-weight: 600;
+      font-size: 13px;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 140ms ease, opacity 140ms ease;
+    }
+
+    .button--submit:hover:not(:disabled) {
+      background: #1769d3;
+      color: #fff;
+    }
+
+    .button--submit:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      background: #80868b;
+    }
+
+    .challenge-status {
+      min-height: 22px;
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+    }
+
+    .challenge-status.success {
+      color: #188038;
+      font-weight: 600;
+    }
+
+    .challenge-status.error {
+      color: #d93025;
+      font-weight: 600;
+    }
+
+    .stat {
+      padding: 0 0 18px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid #e8eaed;
+    }
+
+    .stat span {
+      display: block;
+      margin-bottom: 7px;
+      color: #5f6368;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .stat strong {
+      color: #202124;
+      font-size: 24px;
+      font-weight: 500;
+      letter-spacing: -0.04em;
+    }
+
+    .rank-card {
+      margin-top: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .rank-card span {
+      color: #5f6368;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .rank-card strong {
+      display: block;
+      margin-top: 7px;
+      color: #202124;
+      font-size: 24px;
+      font-weight: 500;
+      letter-spacing: -0.04em;
+    }
+
+    /* ---------- Responsive ---------- */
+
+    @media (max-width: 980px) {
+      .arena {
+        width: min(92vw, 760px);
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .panel:first-child {
+        padding-bottom: 8px;
+      }
+
+      .challenge-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+      }
+
+      .challenge-main {
+        min-height: auto;
+        padding: 36px 0;
+        border-top: 1px solid #e8eaed;
+        border-bottom: 1px solid #e8eaed;
+      }
+
+      .panel:last-child {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 22px;
+        padding-top: 22px;
+      }
+
+      .stat,
+      .rank-card {
+        margin: 0;
+      }
+
+      .stat {
+        padding: 0;
+        border-bottom: 0;
+      }
+    }
+
+    @media (max-width: 768px) {
+
+      .feature-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .section__head {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+    }
+
+    @media (max-width: 600px) {
+
+      .app-header {
+        min-height: 60px;
+      }
+
+      .app-header__inner {
+        width: 92vw;
+        gap: 12px;
+      }
+
+      .app-header__tools {
+        gap: 11px;
+        font-size: 11px;
+      }
+
+      .team-pill {
+        max-width: 145px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .score-pill {
+        display: none;
+      }
+
+      .arena {
+        width: 92vw;
+      }
+
+      .panel {
+        padding: 20px 0;
+      }
+
+      .challenge-list {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .challenge-button {
+        min-height: 38px;
+        padding: 8px;
+        font-size: 11px;
+      }
+
+      .challenge-main {
+        padding: 26px 0 24px;
+      }
+
+      .challenge-title {
+        font-size: 26px;
+      }
+
+      .challenge-description {
+        margin: 20px 0 16px;
+        font-size: 14px;
+      }
+
+      .panel:last-child {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .stat strong,
+      .rank-card strong {
+        font-size: 20px;
+      }
+
+      .stat span,
+      .rank-card span {
+        font-size: 9px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .team-pill {
+        max-width: 110px;
+      }
+
+      .challenge-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  .flag-container {
+      margin: 20px 0 20px;
+      max-width: 650px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .flag-input {
+      padding: 14px 16px;
+      border: 1.5px solid #dadce0;
+      border-radius: 8px;
+      font-size: 16px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .flag-input:focus {
+      border-color: #1a73e8;
+    }
+    .flag-input:disabled {
+      background: #f1f3f4;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Landing -->
+  <div id="landing">
+    <header class="site-header shell">
+      <a class="brand" href="#" aria-label="CTF home">CTF</a>
+      <div class="institution">KDKCE</div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero__inner">
+          <h1>CAPTURE<br>THE FLAG.</h1>
+          <p>Test your cybersecurity skills in our fast-paced live CTF challenge arena.</p>
+
+          <div class="hero__actions">
+            <button class="button button--primary" id="enterButton" type="button">
+              Enter CTF
+            </button>
+            <button class="button" id="howButton" type="button">
+              How it works
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div class="section-divider"></div>
+
+      <section class="section shell" id="how">
+        <div class="section__head">
+          <h2>Three steps.</h2>
+          <p>Solve challenges & earn points.</p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-card__number">01</div>
+            <h3>Verify</h3>
+            <p>Team name + leader name with single-device security.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-card__number">02</div>
+            <h3>Answer</h3>
+            <p>Inspect the challenge and choose the correct MCQ option.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-card__number">03</div>
+            <h3>Win</h3>
+            <p>Submit correct answers to claim points and top the leaderboard.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      CTF · KDKCE
+    </footer>
+  </div>
+
+  <!-- CTF Arena app -->
+  <div id="app" class="app" aria-hidden="true">
+    <header class="app-header">
+      <div class="app-header__inner">
+        <a class="brand" href="#" id="appBrand">CTF</a>
+
+        <div class="app-header__tools">
+          <div class="team-pill">
+            <b id="teamName">—</b>
+            <span id="leaderName"></span>
+          </div>
+
+          <div class="score-pill">
+            Score <strong id="score">0</strong>
+          </div>
+
+          <button class="button" id="exitButton" type="button" aria-label="Exit CTF">Exit</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="arena">
+      <aside class="panel">
+        <div class="panel-title">Challenges</div>
+        <div class="challenge-list" id="challengeList"></div>
+      </aside>
+
+      <section class="panel challenge-main" aria-live="polite">
+        <div class="challenge-meta-row">
+          <div class="challenge-category" id="challengeCategory"></div>
+          <div class="challenge-difficulty-badge" id="challengeDifficulty"></div>
+        </div>
+        
+        <h1 class="challenge-title" id="challengeTitle"></h1>
+        <div class="challenge-points" id="challengePoints"></div>
+
+        <div class="challenge-description" id="challengeDescription"></div>
+
+        <!-- Interactive Flag Form -->
+        <form class="flag-container" id="flagForm">
+          <input type="text" class="flag-input" id="flagInput" placeholder="CC{...}" required />
+          <div class="flag-actions" style="margin-top: 15px;">
+            <button class="button--submit" id="flagSubmitBtn" type="submit">
+              Submit Flag
+            </button>
+          </div>
+        </form>
+
+        <div class="challenge-status" id="challengeStatus" role="status"></div>
+      </section>
+
+      <aside class="panel">
+        <div class="panel-title">Team</div>
+
+        <div class="stat">
+          <span>Captured</span>
+          <strong id="captured">0 / 0</strong>
+        </div>
+
+        <div class="stat">
+          <span>Score</span>
+          <strong id="sideScore">0</strong>
+        </div>
+
+        <div class="rank-card">
+          <span>Rank</span>
+          <strong id="rank">—</strong>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Login Modal -->
+  <div
+    class="modal"
+    id="loginModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="loginTitle"
+    aria-hidden="true"
+  >
+    <div class="modal__card">
+      <div class="modal__top">
+        <h2 id="loginTitle">Enter CTF</h2>
+        <button class="modal__close" id="closeLoginButton" type="button" aria-label="Close">×</button>
+      </div>
+
+      <form id="loginForm" novalidate>
+        <label class="form-label" for="teamInput">Team Name</label>
+        <input class="input" id="teamInput" name="team" type="text" placeholder="sudoers" autocomplete="organization" required>
+
+        <label class="form-label" for="leaderInput">Leader Name</label>
+        <input class="input" id="leaderInput" name="leader" type="text" placeholder="alice" autocomplete="name" required>
+
+        <div class="form-error" id="loginError" role="alert"></div>
+
+        <button class="button button--primary modal__submit" type="submit">
+          Verify Team
+        </button>
+      </form>
+
+      <p class="modal__note">
+        Single-device session security is active. Enter your registered team name and leader name.
+      </p>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lenis@1.3.11/dist/lenis.min.js"></script>
+
+  <script>
+    "use strict";
+
+    /* ---------- Smooth Scrolling ---------- */
+
+    let lenis = null;
+
+    if (
+      typeof Lenis !== "undefined" &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      lenis = new Lenis({
+        autoRaf: true,
+        smoothWheel: true,
+        lerp: 0.09,
+        wheelMultiplier: 1.0,
+        touchMultiplier: 1.2
+      });
+    }
+
+    function smoothScrollTo(target) {
+      const el = typeof target === "string" ? document.querySelector(target) : target;
+      if (!el) return;
+      if (lenis) {
+        lenis.scrollTo(el, { offset: -24, duration: 1.1 });
+      } else {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+
+    const state = {
+      team: null,
+      leader: null,
+      score: 0,
+      challenges: [],
+      solved: new Set(),
+      currentChallengeId: null,
+      rank: "—",
+      pollTimer: null,
+      ws: null
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+
+    const elements = {
+      landing: $("#landing"),
+      app: $("#app"),
+      loginModal: $("#loginModal"),
+      loginForm: $("#loginForm"),
+      loginError: $("#loginError"),
+      teamInput: $("#teamInput"),
+      leaderInput: $("#leaderInput"),
+      challengeList: $("#challengeList"),
+      challengeCategory: $("#challengeCategory"),
+      challengeDifficulty: $("#challengeDifficulty"),
+      challengeTitle: $("#challengeTitle"),
+      challengePoints: $("#challengePoints"),
+      challengeDescription: $("#challengeDescription"),
+      flagForm: $("#flagForm"),
+        flagInput: $("#flagInput"),
+        flagSubmitBtn: $("#flagSubmitBtn"),
+      challengeStatus: $("#challengeStatus"),
+      teamName: $("#teamName"),
+      leaderName: $("#leaderName"),
+      score: $("#score"),
+      sideScore: $("#sideScore"),
+      captured: $("#captured"),
+      rank: $("#rank")
+    };
+
+    function resetState() {
+      state.team = null;
+      state.leader = null;
+      state.score = 0;
+      state.challenges = [];
+      state.solved = new Set();
+      state.currentChallengeId = null;
+        if (elements.flagInput) elements.flagInput.value = "";
+      state.rank = "—";
+      if (state.pollTimer) {
+        clearInterval(state.pollTimer);
+        state.pollTimer = null;
+      }
+      if (state.ws) {
+        try { state.ws.close(); } catch (_) {}
+        state.ws = null;
+      }
+    }
+
+    function openLogin() {
+      if (lenis) lenis.stop();
+      elements.loginModal.classList.add("is-open");
+      elements.loginModal.setAttribute("aria-hidden", "false");
+      document.body.classList.add("modal-open");
+      elements.loginError.textContent = "";
+      requestAnimationFrame(() => elements.teamInput.focus());
+    }
+
+    function closeLogin() {
+      elements.loginModal.classList.remove("is-open");
+      elements.loginModal.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("modal-open");
+      if (lenis) lenis.start();
+    }
+
+    function showApp() {
+      elements.landing.style.display = "none";
+      elements.landing.setAttribute("aria-hidden", "true");
+      elements.app.classList.add("is-active");
+      elements.app.setAttribute("aria-hidden", "false");
+      if (lenis) {
+        lenis.resize();
+        lenis.scrollTo(0, { immediate: true });
+      }
+    }
+
+    function showLanding() {
+      elements.app.classList.remove("is-active");
+      elements.app.setAttribute("aria-hidden", "true");
+      elements.landing.style.display = "";
+      elements.landing.removeAttribute("aria-hidden");
+      if (lenis) {
+        lenis.resize();
+        lenis.scrollTo(0, { immediate: true });
+      }
+    }
+
+
+    /* ---------- UI Renderers ---------- */
+
+    function renderChallengeList() {
+      elements.challengeList.replaceChildren();
+
+      if (!state.challenges || state.challenges.length === 0) {
+        const emptyMsg = document.createElement("div");
+        emptyMsg.style.color = "#80868b";
+        emptyMsg.style.fontSize = "12px";
+        emptyMsg.style.padding = "10px 0";
+        emptyMsg.textContent = "No challenges available";
+        elements.challengeList.appendChild(emptyMsg);
+        return;
+      }
+
+      state.challenges.forEach((challenge, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "challenge-button";
+        button.dataset.challengeId = String(challenge.id);
+        button.innerHTML = `
+          <span>${String(index + 1).padStart(2, "0")} · ${escapeHtml(challenge.title)}</span>
+          <small>${challenge.points} pts</small>
+        `;
+
+        button.addEventListener("click", () => {
+          selectChallenge(challenge.id);
+        });
+
+        elements.challengeList.appendChild(button);
+      });
+
+      updateChallengeListSelection();
+    }
+
+    function updateChallengeListSelection() {
+      elements.challengeList.querySelectorAll(".challenge-button").forEach((button) => {
+        const id = Number(button.dataset.challengeId);
+        button.classList.toggle("is-active", id === state.currentChallengeId);
+        button.classList.toggle("is-solved", state.solved.has(id));
+      });
+    }
+
+    function selectChallenge(id) {
+      const challenge = getChallenge(id);
+      if (!challenge) return;
+
+      state.currentChallengeId = id;
+      state.selectedAnswerValue = null;
+
+      const isSolved = state.solved.has(id) || Boolean(challenge.solved);
+
+      // Meta info
+      elements.challengeCategory.textContent = challenge.category || "Challenge";
+      elements.challengeDifficulty.textContent = challenge.difficulty || "Standard";
+      elements.challengeTitle.textContent = challenge.title || "Challenge";
+      elements.challengePoints.textContent = `${challenge.points} points`;
+
+      // Setup Description
+      elements.challengeDescription.textContent = challenge.description || "";
+      elements.flagForm.style.display = "flex";
+
+      // Status
+      elements.challengeStatus.textContent = isSolved ? "✓ Captured & Solved" : "";
+      elements.challengeStatus.className = "challenge-status" + (isSolved ? " success" : "");
+
+      // Input & Button (Standard Form)
+      elements.flagInput.value = "";
+      if (isSolved) {
+        elements.flagInput.disabled = true;
+        elements.flagInput.placeholder = "Already solved!";
+        elements.flagSubmitBtn.disabled = true;
+        elements.flagSubmitBtn.textContent = "✓ Solved";
+      } else {
+        elements.flagInput.disabled = false;
+        elements.flagInput.placeholder = "CC{...}";
+        elements.flagSubmitBtn.disabled = false;
+        elements.flagSubmitBtn.textContent = "Submit Flag";
+      }
+
+      updateChallengeListSelection();
+
+      if (window.matchMedia("(max-width: 900px)").matches) {
+        smoothScrollTo(elements.challengeTitle);
+      }
+    }
+
+    function getChallenge(id) {
+      return state.challenges.find((c) => c.id === id) || null;
+    }
+
+    function updateStats() {
+      elements.teamName.textContent = state.team || "—";
+      elements.leaderName.textContent = state.leader ? `· ${state.leader}` : "";
+      elements.score.textContent = String(state.score);
+      elements.sideScore.textContent = String(state.score);
+      elements.captured.textContent = `${state.solved.size} / ${state.challenges.length || 0}`;
+      elements.rank.textContent = state.rank || "—";
+    }
+
+    function setStatus(message, type = "") {
+      elements.challengeStatus.textContent = message;
+      elements.challengeStatus.className = `challenge-status${type ? ` ${type}` : ""}`;
+    }
+
+    function escapeHtml(value) {
+      if (typeof value !== "string") return "";
+      return value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    /* ---------- API Integrations ---------- */
+
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.teamName) {
+            state.team = data.teamName;
+            showApp();
+            await loadChallenges();
+            await fetchLeaderboard();
+            startPolling();
+            setupWS();
+          }
+        }
+      } catch (err) {
+        console.warn("Auth check:", err);
+      }
+    }
+
+    async function handleLogin(teamName, leaderName) {
+      elements.loginError.textContent = "";
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teamName, leaderName })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          state.team = data.teamName || teamName;
+          state.leader = leaderName;
+          closeLogin();
+          showApp();
+          await loadChallenges();
+          await fetchLeaderboard();
+          startPolling();
+          setupWS();
+        } else {
+          elements.loginError.textContent = data.error || "Invalid credentials or session active.";
+        }
+      } catch (err) {
+        console.error("Login error:", err);
+        elements.loginError.textContent = "Cannot connect to server. Please ensure the server is running.";
+      }
+    }
+
+    async function handleLogout() {
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } catch (err) {
+        console.warn("Logout error:", err);
+      }
+      resetState();
+      elements.loginForm.reset();
+      elements.loginError.textContent = "";
+      if(elements.flagForm) elements.flagForm.reset();
+      showLanding();
+      if (lenis) {
+        lenis.scrollTo(0, { duration: 0.9 });
+      } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    }
+
+    async function loadChallenges() {
+      try {
+        const res = await fetch("/api/arena/challenges");
+        if (res.ok) {
+          const challenges = await res.json();
+          state.challenges = Array.isArray(challenges) ? challenges : [];
+          state.solved = new Set();
+          let calculatedScore = 0;
+
+          state.challenges.forEach((c) => {
+            if (c.solved) {
+              state.solved.add(c.id);
+              calculatedScore += (c.points || 0);
+            }
+          });
+
+          if (state.score === 0 && calculatedScore > 0) {
+            state.score = calculatedScore;
+          }
+
+          renderChallengeList();
+
+          if (state.challenges.length > 0) {
+            if (!state.currentChallengeId || !getChallenge(state.currentChallengeId)) {
+              state.currentChallengeId = state.challenges[0].id;
+            }
+            selectChallenge(state.currentChallengeId);
+          }
+          updateStats();
+        }
+      } catch (err) {
+        console.warn("Challenges fetch error:", err);
+      }
+    }
+
+    async function submitAnswer() {
+      const challengeId = state.currentChallengeId;
+      const challenge = getChallenge(challengeId);
+      
+      let answer = elements.flagInput.value.trim();
+
+      if (!challengeId || !answer) return;
+
+      if (state.solved.has(challengeId)) {
+        setStatus("Already captured.", "success");
+        return;
+      }
+
+      setStatus("Verifying answer...");
+      elements.flagSubmitBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/arena/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ challengeId, flag: answer })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          if (data.isCorrect) {
+            state.solved.add(challengeId);
+            if (challenge) {
+              state.score += challenge.points;
+            }
+            const firstBloodText = data.firstBlood ? " (FIRST BLOOD! 🩸)" : "";
+            setStatus(`✓ Correct! +${challenge ? challenge.points : 0} points${firstBloodText}`, "success");
+            
+            elements.flagSubmitBtn.textContent = "✓ Solved"; elements.flagInput.disabled = true;
+            
+            updateStats();
+            updateChallengeListSelection();
+            await loadChallenges();
+            await fetchLeaderboard();
+          } else {
+            setStatus("Incorrect answer. Try again!", "error");
+            elements.flagSubmitBtn.disabled = false;
+          }
+        } else {
+          setStatus(data.error || "Submission failed.", "error");
+          elements.flagSubmitBtn.disabled = false;
+        }
+      } catch (err) {
+        console.error("Answer submission error:", err);
+        setStatus("Submission error. Check server connection.", "error");
+        elements.flagSubmitBtn.disabled = false;
+      }
+    }
+
+    async function fetchLeaderboard() {
+      try {
+        const res = await fetch("/api/arena/leaderboard");
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.leaderboard || [];
+          if (state.team) {
+            const teamLower = state.team.trim().toLowerCase();
+            const index = list.findIndex((t) => t.name.trim().toLowerCase() === teamLower);
+            if (index !== -1) {
+              state.rank = `#${index + 1}`;
+              state.score = list[index].score;
+            }
+          }
+          updateStats();
+        }
+      } catch (err) {
+        console.warn("Leaderboard fetch error:", err);
+      }
+    }
+
+    function startPolling() {
+      if (state.pollTimer) clearInterval(state.pollTimer);
+      state.pollTimer = setInterval(() => {
+        fetchLeaderboard();
+      }, 4000);
+    }
+
+    function setupWS() {
+      if (state.ws) {
+        try { state.ws.close(); } catch (_) {}
+      }
+
+      try {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        const ws = new WebSocket(wsUrl);
+        state.ws = ws;
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "leaderboard:update") {
+              fetchLeaderboard();
+            } else if (data.type === "challenge:first_blood") {
+              loadChallenges();
+              fetchLeaderboard();
+            } else if (data.type === "event:state_change") {
+              loadChallenges();
+              fetchLeaderboard();
+            }
+          } catch (_) {}
+        };
+      } catch (e) {
+        console.warn("WebSocket init error:", e);
+      }
+    }
+
+    /* ---------- Event Listeners ---------- */
+
+    $("#enterButton").addEventListener("click", openLogin);
+
+    $("#howButton").addEventListener("click", () => {
+      smoothScrollTo("#how");
+    });
+
+    $("#closeLoginButton").addEventListener("click", closeLogin);
+
+    $("#exitButton").addEventListener("click", handleLogout);
+
+    elements.loginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const team = elements.teamInput.value.trim();
+      const leader = elements.leaderInput.value.trim();
+
+      if (!team || !leader) {
+        elements.loginError.textContent = "Enter both fields.";
+        return;
+      }
+
+      handleLogin(team, leader);
+    });
+
+    elements.flagForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitAnswer();
+    });
+
+    if (elements.mcqSubmitBtn) {
+      elements.mcqSubmitBtn.addEventListener("click", () => {
+        submitAnswer();
+      });
+    }
+
+    elements.loginModal.addEventListener("click", (event) => {
+      if (event.target === elements.loginModal) {
+        closeLogin();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && elements.loginModal.classList.contains("is-open")) {
+        closeLogin();
+      }
+    });
+
+    checkAuth();
+  </script>
+
+</body>
+</html>
