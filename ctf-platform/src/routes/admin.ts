@@ -298,8 +298,17 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
       }
 
       // Read columns with sensible fallbacks
-      let description = normalizedRow['problemstatement'] || normalizedRow['description'] || '';
+      let description = normalizedRow['problemstatement'] || normalizedRow['description'] || normalizedRow['question'] || normalizedRow['questions'] || normalizedRow['challenge'] || normalizedRow['text'] || '';
       const hint = normalizedRow['hint'] || '';
+
+      // If user passed options explicitly in an options column
+      let optionsJson = null;
+      if (normalizedRow['options']) {
+        const rawOpts = normalizedRow['options'].split(',').map((o: string) => o.trim()).filter((o: string) => o);
+        if (rawOpts.length > 0) {
+          optionsJson = JSON.stringify(rawOpts);
+        }
+      }
 
       let rawFlag = (normalizedRow['flag'] || normalizedRow['answer'] || normalizedRow['answers'] || '').trim().toLowerCase();
 
@@ -329,7 +338,8 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
         category,
         difficulty,
         points,
-        serverSideFlag: rawFlag
+        serverSideFlag: rawFlag,
+        options: optionsJson
       });
       importedCount++;
     }

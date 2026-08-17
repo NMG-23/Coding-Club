@@ -1088,6 +1088,15 @@
 
         <div class="challenge-description" id="challengeDescription"></div>
 
+        <div class="mcq-container" id="mcqContainer" style="display: none;">
+          <div class="mcq-options-grid" id="mcqOptions"></div>
+          <div class="mcq-actions">
+            <button class="button--submit" id="mcqSubmitBtn" type="button" disabled>
+              Submit Answer
+            </button>
+          </div>
+        </div>
+
         <!-- Interactive Flag Form -->
         <form class="flag-container" id="flagForm">
           <input type="text" class="flag-input" id="flagInput" placeholder="CC{...}" required />
@@ -1242,6 +1251,9 @@
       challengeTitle: $("#challengeTitle"),
       challengePoints: $("#challengePoints"),
       challengeDescription: $("#challengeDescription"),
+      mcqContainer: $("#mcqContainer"),
+      mcqOptions: $("#mcqOptions"),
+      mcqSubmitBtn: $("#mcqSubmitBtn"),
       flagForm: $("#flagForm"),
         flagInput: $("#flagInput"),
         flagSubmitBtn: $("#flagSubmitBtn"),
@@ -1317,9 +1329,8 @@
 
     function getOptionsForChallenge(challenge) {
       const description = challenge.description || "";
-      const titleLower = (challenge.title || "").trim().toLowerCase();
 
-      // Prioritize structured options array from backend
+      // Only use explicit structured options array from backend
       if (Array.isArray(challenge.options) && challenge.options.length > 0) {
         const keys = ["A", "B", "C", "D", "E", "F"];
         return {
@@ -1332,54 +1343,10 @@
         };
       }
 
-      // Check if description has explicit A) B) C) D) options
-      const lines = description.split("\n");
-      const parsedOptions = [];
-      const questionLines = [];
-      const optionRegex = /^\s*(?:\[([A-Da-d0-9])\]|([A-Da-d0-9])[\)\.\:\-])\s*(.+)$/;
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) {
-          if (parsedOptions.length === 0) questionLines.push("");
-          continue;
-        }
-        const match = trimmed.match(optionRegex);
-        if (match) {
-          const key = (match[1] || match[2]).toUpperCase();
-          const label = match[3].trim();
-          parsedOptions.push({ key, label, value: key });
-        } else {
-          if (parsedOptions.length === 0) {
-            questionLines.push(line);
-          }
-        }
-      }
-
-      if (parsedOptions.length >= 2) {
-        return {
-          questionText: questionLines.join("\n").trim() || description,
-          options: parsedOptions
-        };
-      }
-
-      // Check preset options by challenge title
-      if (PRESET_MCQ_OPTIONS[titleLower]) {
-        return {
-          questionText: description,
-          options: PRESET_MCQ_OPTIONS[titleLower]
-        };
-      }
-
-      // Fallback default options
+      // Default to input-driven (no options)
       return {
         questionText: description,
-        options: [
-          { key: "A", label: `Option A (${challenge.category || "Choice 1"})`, value: "A" },
-          { key: "B", label: `Option B (${challenge.title || "Choice 2"})`, value: "B" },
-          { key: "C", label: "Option C (Standard Choice)", value: "C" },
-          { key: "D", label: "Option D (Alternative Choice)", value: "D" }
-        ]
+        options: []
       };
     }
 
@@ -1440,26 +1407,46 @@
       elements.challengePoints.textContent = `${challenge.points} points`;
 
       // Get question text & MCQ options
+      const parsed = getOptionsForChallenge(challenge);
+      
       // Setup Description
-        elements.challengeDescription.textContent = challenge.description || "";
-  
-        // Status
-        elements.challengeStatus.textContent = isSolved ? "✓ Captured & Solved" : "";
-        elements.challengeStatus.className = "challenge-status" + (isSolved ? " success" : "");
-  
-        // Input & Button
-        elements.flagInput.value = "";
+      elements.challengeDescription.textContent = parsed.questionText || challenge.description || "";
+
+      // Render Options if available
+      if (parsed.options && parsed.options.length > 0) {
+        elements.mcqContainer.style.display = "block";
+        elements.flagForm.style.display = "none";
+        renderMCQOptions(parsed.options, isSolved);
+        
         if (isSolved) {
-          elements.flagInput.disabled = true;
-          elements.flagInput.placeholder = "Already solved!";
-          elements.flagSubmitBtn.disabled = true;
-          elements.flagSubmitBtn.textContent = "✓ Solved";
+          elements.mcqSubmitBtn.disabled = true;
+          elements.mcqSubmitBtn.textContent = "✓ Solved";
         } else {
-          elements.flagInput.disabled = false;
-          elements.flagInput.placeholder = "CC{...}";
-          elements.flagSubmitBtn.disabled = false;
-          elements.flagSubmitBtn.textContent = "Submit Flag";
+          elements.mcqSubmitBtn.disabled = true;
+          elements.mcqSubmitBtn.textContent = "Submit Answer";
         }
+      } else {
+        elements.mcqContainer.style.display = "none";
+        elements.flagForm.style.display = "flex";
+      }
+
+      // Status
+      elements.challengeStatus.textContent = isSolved ? "✓ Captured & Solved" : "";
+      elements.challengeStatus.className = "challenge-status" + (isSolved ? " success" : "");
+
+      // Input & Button (Standard Form)
+      elements.flagInput.value = "";
+      if (isSolved) {
+        elements.flagInput.disabled = true;
+        elements.flagInput.placeholder = "Already solved!";
+        elements.flagSubmitBtn.disabled = true;
+        elements.flagSubmitBtn.textContent = "✓ Solved";
+      } else {
+        elements.flagInput.disabled = false;
+        elements.flagInput.placeholder = "CC{...}";
+        elements.flagSubmitBtn.disabled = false;
+        elements.flagSubmitBtn.textContent = "Submit Flag";
+      }
 
       updateChallengeListSelection();
 
@@ -1523,6 +1510,7 @@
       });
 
       elements.flagSubmitBtn.disabled = false;
+      elements.mcqSubmitBtn.disabled = false;
       elements.challengeStatus.textContent = "";
       elements.challengeStatus.className = "challenge-status";
     }
@@ -1660,10 +1648,17 @@
 
     async function submitAnswer() {
       const challengeId = state.currentChallengeId;
-      const answer = elements.flagInput.value.trim();
+      const challenge = getChallenge(challengeId);
+      
+      let answer = elements.flagInput.value.trim();
+      
+      const parsed = getOptionsForChallenge(challenge);
+      if (parsed.options && parsed.options.length > 0) {
+        answer = state.selectedAnswerValue;
+      }
+
       if (!challengeId || !answer) return;
 
-      const challenge = getChallenge(challengeId);
       if (state.solved.has(challengeId)) {
         setStatus("Already captured.", "success");
         return;
@@ -1671,6 +1666,7 @@
 
       setStatus("Verifying answer...");
       elements.flagSubmitBtn.disabled = true;
+      if (elements.mcqSubmitBtn) elements.mcqSubmitBtn.disabled = true;
 
       try {
         const res = await fetch("/api/arena/submit", {
@@ -1691,6 +1687,10 @@
             setStatus(`✓ Correct! +${challenge ? challenge.points : 0} points${firstBloodText}`, "success");
             
             elements.flagSubmitBtn.textContent = "✓ Solved"; elements.flagInput.disabled = true;
+            if (elements.mcqSubmitBtn) {
+              elements.mcqSubmitBtn.textContent = "✓ Solved";
+              elements.mcqSubmitBtn.disabled = true;
+            }
             
             updateStats();
             updateChallengeListSelection();
@@ -1699,15 +1699,18 @@
           } else {
             setStatus("Incorrect answer. Try again!", "error");
             elements.flagSubmitBtn.disabled = false;
+            if (elements.mcqSubmitBtn) elements.mcqSubmitBtn.disabled = false;
           }
         } else {
           setStatus(data.error || "Submission failed.", "error");
           elements.flagSubmitBtn.disabled = false;
+          if (elements.mcqSubmitBtn) elements.mcqSubmitBtn.disabled = false;
         }
       } catch (err) {
         console.error("Answer submission error:", err);
         setStatus("Submission error. Check server connection.", "error");
         elements.flagSubmitBtn.disabled = false;
+        if (elements.mcqSubmitBtn) elements.mcqSubmitBtn.disabled = false;
       }
     }
 
@@ -1798,6 +1801,12 @@
       event.preventDefault();
       submitAnswer();
     });
+
+    if (elements.mcqSubmitBtn) {
+      elements.mcqSubmitBtn.addEventListener("click", () => {
+        submitAnswer();
+      });
+    }
 
     elements.loginModal.addEventListener("click", (event) => {
       if (event.target === elements.loginModal) {
