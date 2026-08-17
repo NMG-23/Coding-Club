@@ -42,7 +42,6 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
       id: challenges.id,
       title: challenges.title,
       description: challenges.description,
-      options: challenges.options,
       category: challenges.category,
       difficulty: challenges.difficulty,
       points: challenges.points,
@@ -54,17 +53,8 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
     const solvedIds = new Set(teamSolves.map(s => s.challengeId));
 
     return allChalls.map(c => {
-      let parsedOptions: string[] = [];
-      if (c.options) {
-        try {
-          parsedOptions = JSON.parse(c.options);
-        } catch (_) {
-          parsedOptions = [];
-        }
-      }
       return {
         ...c,
-        options: parsedOptions,
         solved: solvedIds.has(c.id)
       };
     });

@@ -221,9 +221,25 @@ If you used Google Forms or another service for registration:
 
 ### How to Bulk Import Challenges
 
-1. Create an Excel (`.xlsx`) sheet with columns: `Title`, `Description`, `Category`, `Difficulty`, `Points`, `Hint`, and `Flag`. (Don't worry if you miss some columns, the backend has sensible defaults).
+1. Create an Excel (`.xlsx`) sheet. The platform automatically tries to map your columns based on variations of common names:
+   - **Title**: `Title`, `Name`
+   - **Description**: `Description`, `Statement`, `Question`
+   - **Category**: `Category`, `Type`
+   - **Difficulty**: `Difficulty`, `Level`
+   - **Points**: `Points`, `Score`
+   - **Hint**: `Hint`
+   - **Flag**: `Flag`, `Answer`, `Answers`, `Capture`
 2. Under **Challenge Import**, select your file and upload it.
-3. The server will automatically format all your flags to `cc{answer}`, append hints to descriptions, and import everything instantly.
+3. The server will automatically format all your flags to `cc{answer}` if they aren't already, append hints to descriptions, and import everything instantly.
+
+### Troubleshooting Common Issues
+
+**1. "I logged in but the Challenge List is completely empty (0/0)!"**
+This happens when your current active login session belongs to an older event, but new challenges were uploaded to a new Active Event. The platform strictly isolates challenges by event ID.
+**Fix:** Click the **Exit** button in the top right to log out. Re-upload your teams list to ensure they are registered for the new event, then log back in.
+
+**2. "The UI is frozen or components aren't showing up!"**
+Ensure that `public/index.html` does not have duplicate versions of the `Lenis` smooth scroll library. Two instances running simultaneously will cause a global variable conflict and crash the UI rendering pipeline immediately after logging in.
 
 ### How to Free a Locked Team
 

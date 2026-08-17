@@ -1088,15 +1088,6 @@
 
         <div class="challenge-description" id="challengeDescription"></div>
 
-        <div class="mcq-container" id="mcqContainer" style="display: none;">
-          <div class="mcq-options-grid" id="mcqOptions"></div>
-          <div class="mcq-actions">
-            <button class="button--submit" id="mcqSubmitBtn" type="button" disabled>
-              Submit Answer
-            </button>
-          </div>
-        </div>
-
         <!-- Interactive Flag Form -->
         <form class="flag-container" id="flagForm">
           <input type="text" class="flag-input" id="flagInput" placeholder="CC{...}" required />
@@ -1199,29 +1190,6 @@
     }
 
 
-    /* ---------- Known Fallback Challenge MCQ Options ---------- */
-
-    const PRESET_MCQ_OPTIONS = {
-      "sanity check": [
-        { key: "A", label: "flag{welcome_to_ctf}", value: "flag{welcome_to_ctf}" },
-        { key: "B", label: "flag{w3lc0m3}", value: "flag{w3lc0m3}" },
-        { key: "C", label: "flag{sanity_pass_2026}", value: "flag{sanity_pass_2026}" },
-        { key: "D", label: "flag{hello_cyber_world}", value: "flag{hello_cyber_world}" }
-      ],
-      "sqli time": [
-        { key: "A", label: "flag{admin_bypass_success}", value: "flag{admin_bypass_success}" },
-        { key: "B", label: "flag{sqli_auth_ok}", value: "flag{sqli_auth_ok}" },
-        { key: "C", label: "flag{un10n_s3l3ct}", value: "flag{un10n_s3l3ct}" },
-        { key: "D", label: "flag{1_equals_1_always}", value: "flag{1_equals_1_always}" }
-      ],
-      "rsa prime": [
-        { key: "A", label: "flag{p_q_f4ct0rs}", value: "flag{p_q_f4ct0rs}" },
-        { key: "B", label: "flag{rsa_modulus_cracked}", value: "flag{rsa_modulus_cracked}" },
-        { key: "C", label: "flag{prime_factors_found}", value: "flag{prime_factors_found}" },
-        { key: "D", label: "flag{crypto_private_key}", value: "flag{crypto_private_key}" }
-      ]
-    };
-
     const state = {
       team: null,
       leader: null,
@@ -1229,7 +1197,6 @@
       challenges: [],
       solved: new Set(),
       currentChallengeId: null,
-      selectedAnswerValue: null,
       rank: "—",
       pollTimer: null,
       ws: null
@@ -1251,9 +1218,6 @@
       challengeTitle: $("#challengeTitle"),
       challengePoints: $("#challengePoints"),
       challengeDescription: $("#challengeDescription"),
-      mcqContainer: $("#mcqContainer"),
-      mcqOptions: $("#mcqOptions"),
-      mcqSubmitBtn: $("#mcqSubmitBtn"),
       flagForm: $("#flagForm"),
         flagInput: $("#flagInput"),
         flagSubmitBtn: $("#flagSubmitBtn"),
@@ -1273,7 +1237,6 @@
       state.challenges = [];
       state.solved = new Set();
       state.currentChallengeId = null;
-      state.selectedAnswerValue = null;
         if (elements.flagInput) elements.flagInput.value = "";
       state.rank = "—";
       if (state.pollTimer) {
@@ -1325,30 +1288,7 @@
     }
 
 
-    /* ---------- MCQ Parser & Generator ---------- */
-
-    function getOptionsForChallenge(challenge) {
-      const description = challenge.description || "";
-
-      // Only use explicit structured options array from backend
-      if (Array.isArray(challenge.options) && challenge.options.length > 0) {
-        const keys = ["A", "B", "C", "D", "E", "F"];
-        return {
-          questionText: description,
-          options: challenge.options.map((opt, i) => ({
-            key: keys[i] || String(i + 1),
-            label: opt,
-            value: keys[i] || String(i + 1)
-          }))
-        };
-      }
-
-      // Default to input-driven (no options)
-      return {
-        questionText: description,
-        options: []
-      };
-    }
+    /* ---------- UI Renderers ---------- */
 
     function renderChallengeList() {
       elements.challengeList.replaceChildren();
@@ -1406,29 +1346,9 @@
       elements.challengeTitle.textContent = challenge.title || "Challenge";
       elements.challengePoints.textContent = `${challenge.points} points`;
 
-      // Get question text & MCQ options
-      const parsed = getOptionsForChallenge(challenge);
-      
       // Setup Description
-      elements.challengeDescription.textContent = parsed.questionText || challenge.description || "";
-
-      // Render Options if available
-      if (parsed.options && parsed.options.length > 0) {
-        elements.mcqContainer.style.display = "block";
-        elements.flagForm.style.display = "none";
-        renderMCQOptions(parsed.options, isSolved);
-        
-        if (isSolved) {
-          elements.mcqSubmitBtn.disabled = true;
-          elements.mcqSubmitBtn.textContent = "✓ Solved";
-        } else {
-          elements.mcqSubmitBtn.disabled = true;
-          elements.mcqSubmitBtn.textContent = "Submit Answer";
-        }
-      } else {
-        elements.mcqContainer.style.display = "none";
-        elements.flagForm.style.display = "flex";
-      }
+      elements.challengeDescription.textContent = challenge.description || "";
+      elements.flagForm.style.display = "flex";
 
       // Status
       elements.challengeStatus.textContent = isSolved ? "✓ Captured & Solved" : "";
@@ -1453,66 +1373,6 @@
       if (window.matchMedia("(max-width: 900px)").matches) {
         smoothScrollTo(elements.challengeTitle);
       }
-    }
-
-    function renderMCQOptions(options, isSolved) {
-      elements.mcqOptions.replaceChildren();
-
-      options.forEach((opt) => {
-        const card = document.createElement("label");
-        card.className = "mcq-card" + (isSolved ? " is-disabled" : "");
-        card.dataset.key = opt.key;
-        card.dataset.value = opt.value;
-
-        const radio = document.createElement("input");
-        radio.type = "radio";
-        radio.name = "mcq_choice";
-        radio.value = opt.value;
-        radio.className = "mcq-radio";
-        radio.disabled = isSolved;
-
-        const badge = document.createElement("div");
-        badge.className = "mcq-badge";
-        badge.textContent = opt.key;
-
-        const label = document.createElement("div");
-        label.className = "mcq-label";
-        label.textContent = opt.label;
-
-        const check = document.createElement("div");
-        check.className = "mcq-check-circle";
-
-        card.appendChild(radio);
-        card.appendChild(badge);
-        card.appendChild(label);
-        card.appendChild(check);
-
-        if (!isSolved) {
-          card.addEventListener("click", () => {
-            selectMCQOption(opt.key, opt.value);
-          });
-        }
-
-        elements.mcqOptions.appendChild(card);
-      });
-    }
-
-    function selectMCQOption(key, value) {
-      if (state.solved.has(state.currentChallengeId)) return;
-
-      state.selectedAnswerValue = value;
-
-      elements.mcqOptions.querySelectorAll(".mcq-card").forEach((card) => {
-        const isMatch = card.dataset.key === key;
-        card.classList.toggle("is-selected", isMatch);
-        const radio = card.querySelector(".mcq-radio");
-        if (radio) radio.checked = isMatch;
-      });
-
-      elements.flagSubmitBtn.disabled = false;
-      elements.mcqSubmitBtn.disabled = false;
-      elements.challengeStatus.textContent = "";
-      elements.challengeStatus.className = "challenge-status";
     }
 
     function getChallenge(id) {
@@ -1651,11 +1511,6 @@
       const challenge = getChallenge(challengeId);
       
       let answer = elements.flagInput.value.trim();
-      
-      const parsed = getOptionsForChallenge(challenge);
-      if (parsed.options && parsed.options.length > 0) {
-        answer = state.selectedAnswerValue;
-      }
 
       if (!challengeId || !answer) return;
 
@@ -1666,7 +1521,6 @@
 
       setStatus("Verifying answer...");
       elements.flagSubmitBtn.disabled = true;
-      if (elements.mcqSubmitBtn) elements.mcqSubmitBtn.disabled = true;
 
       try {
         const res = await fetch("/api/arena/submit", {
@@ -1687,10 +1541,6 @@
             setStatus(`✓ Correct! +${challenge ? challenge.points : 0} points${firstBloodText}`, "success");
             
             elements.flagSubmitBtn.textContent = "✓ Solved"; elements.flagInput.disabled = true;
-            if (elements.mcqSubmitBtn) {
-              elements.mcqSubmitBtn.textContent = "✓ Solved";
-              elements.mcqSubmitBtn.disabled = true;
-            }
             
             updateStats();
             updateChallengeListSelection();
@@ -1699,18 +1549,15 @@
           } else {
             setStatus("Incorrect answer. Try again!", "error");
             elements.flagSubmitBtn.disabled = false;
-            if (elements.mcqSubmitBtn) elements.mcqSubmitBtn.disabled = false;
           }
         } else {
           setStatus(data.error || "Submission failed.", "error");
           elements.flagSubmitBtn.disabled = false;
-          if (elements.mcqSubmitBtn) elements.mcqSubmitBtn.disabled = false;
         }
       } catch (err) {
         console.error("Answer submission error:", err);
         setStatus("Submission error. Check server connection.", "error");
         elements.flagSubmitBtn.disabled = false;
-        if (elements.mcqSubmitBtn) elements.mcqSubmitBtn.disabled = false;
       }
     }
 
@@ -1823,17 +1670,5 @@
     checkAuth();
   </script>
 
-  <!-- Lenis Smooth Scroll -->
-  <script src="https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const lenis = new Lenis({ duration: 1.2, smooth: true })
-      function raf(time) {
-        lenis.raf(time)
-        requestAnimationFrame(raf)
-      }
-      requestAnimationFrame(raf)
-    });
-  </script>
 </body>
 </html>
