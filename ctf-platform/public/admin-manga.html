@@ -131,10 +131,10 @@
     .upload-row { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 4px dotted #000; }
     .upload-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
     @media (min-width: 640px) { .upload-row { flex-direction: row; align-items: flex-end; } }
-    .file-select { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+    .file-select { flex: 1; display: flex; flex-direction: column; gap: 12px; position: relative; }
     .file-select label { font-size: 16px; font-weight: 900; color: #000; text-transform: uppercase; }
     .file-select input[type="file"] { font-size: 15px; font-weight: 700; color: #000; padding: 12px; border: 3px solid #000; background: #fff; width: 100%; box-shadow: inset 4px 4px 0 #eee; }
-    .upload-feedback { font-family: var(--font-mono); font-weight: 700; font-size: 14px; margin-top: 8px; color: #000; min-height: 20px; background: #ffeb3b; padding: 4px 8px; border: 2px solid #000; width: fit-content; display: none; }
+    .upload-feedback { position: absolute; top: 100%; left: 0; font-family: var(--font-mono); font-weight: 700; font-size: 14px; margin-top: 8px; color: #000; min-height: 20px; background: #ffeb3b; padding: 4px 8px; border: 2px solid #000; width: fit-content; display: none; }
     .upload-feedback:not(:empty) { display: block; }
 
     .form-group { display: flex; flex-direction: column; gap: 20px; max-width: 480px; }
@@ -177,7 +177,7 @@
           <option value="manga-color">Theme: Pop-Art (Color Manga)</option>
           <option value="crystal">Theme: Imperial Crystal (Purple/White)</option>
         </select>
-        <button class="btn btn--sm" onclick="openSecretModal()">Configure Key</button>
+        <a href="#" class="link" onclick="adminLogout(); return false;">Logout</a>
         <a href="/public/index.html" class="link">Return to Arena</a>
       </div>
     </header>
@@ -293,27 +293,26 @@
         else if (themeName === 'manga') window.location.href = '/public/admin-manga.html';
         else if (themeName === 'manga-color') window.location.href = '/public/admin-manga-color.html';
         else if (themeName === 'crystal') window.location.href = '/public/admin-crystal.html';
-      }, 300);
+      }, 350);
     }
 
-    let ADMIN_SECRET = localStorage.getItem("ctf_admin_secret") || "admin-secret-key";
     let teamRecords = [];
     let wsInstance = null;
 
     async function apiRequest(endpoint, options = {}) {
-      options.headers = { ...(options.headers || {}), "Authorization": `Bearer ${ADMIN_SECRET}` };
+      options.credentials = "include";
       try {
         const response = await fetch(endpoint, options);
         let data = null;
         const contentType = response.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) { data = await response.json(); } 
+        if (contentType.includes("application/json")) { data = await response.json(); }
         else { const text = await response.text(); try { data = JSON.parse(text); } catch (_) { data = { text }; } }
         return { ok: response.ok, status: response.status, data };
       } catch (err) { return { ok: false, status: 0, error: err.message || "Network Error" }; }
     }
 
     function initWebSocket() {
-      if (wsInstance) { try { wsInstance.close(); } catch (_) {} }
+      if (wsInstance) { try { wsInstance.close(); } catch (_) { } }
       try {
         const wsUrl = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws`;
         const ws = new WebSocket(wsUrl);
@@ -328,10 +327,10 @@
                 el.textContent = `Event Status: ${msg.payload.action.toUpperCase()}`; el.classList.add("active");
               }
             }
-          } catch (_) {}
+          } catch (_) { }
         };
         ws.onclose = () => { setTimeout(() => initWebSocket(), 5000); };
-      } catch (err) {}
+      } catch (err) { }
     }
 
     function notify(text) {
@@ -355,17 +354,16 @@
     document.getElementById("modalConfirmBtn").addEventListener("click", () => { if (onConfirmCb) onConfirmCb(); closeModal(); });
     document.getElementById("sysModal").addEventListener("click", (e) => { if (e.target.id === "sysModal") closeModal(); });
 
-    function openSecretModal() {
-      const body = `<input class="input-field" id="modalSecretInput" type="password" value="${ADMIN_SECRET}">`;
-      openModalUI("Configure Key", "Set the Bearer token for API authentication.", () => {
-        const val = document.getElementById("modalSecretInput").value.trim();
-        if (val) { ADMIN_SECRET = val; localStorage.setItem("ctf_admin_secret", val); notify("Key updated"); loadAllData(); }
-      }, body);
+    async function adminLogout() {
+      try {
+        await fetch("/api/admin/logout", { method: "POST", credentials: "include" });
+        window.location.href = "/public/admin-login.html";
+      } catch (_) { }
     }
 
     async function loadStats() {
       const res = await apiRequest("/api/admin/stats");
-      if (!res.ok) { if (res.status === 401) notify("Unauthorized (401). Present valid key."); return; }
+      if (!res.ok) return;
       document.getElementById("m-teams").textContent = res.data?.teams ?? 0;
       document.getElementById("m-sessions").textContent = res.data?.activeSessions ?? 0;
       document.getElementById("m-subs").textContent = res.data?.submissions ?? 0;
@@ -382,7 +380,7 @@
       const query = (document.getElementById("teamFilterInput").value || "").trim().toLowerCase();
       let filtered = query ? teamRecords.filter(t => t.teamName.toLowerCase().includes(query) || String(t.id) === query) : teamRecords;
       const c = document.getElementById("teamsContainer");
-      if (filtered.length === 0) { c.innerHTML = `<div style="padding: 32px 0; text-align: center; color: var(--text-faint); font-weight: 700;">No records found.</div>`; return; }
+      if (filtered.length === 0) { c.innerHTML = `<div style="padding: 32px 0; text-align: center; color: var(--text-faint);">No records found.</div>`; return; }
       c.innerHTML = "";
       filtered.forEach(t => {
         const hasSession = Boolean(t.activeSessionId);

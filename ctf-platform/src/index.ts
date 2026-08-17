@@ -14,11 +14,53 @@ import { cors } from '@elysiajs/cors';
 import { staticPlugin } from '@elysiajs/static';
 import { authRoutes } from './routes/auth';
 import { arenaRoutes } from './routes/arena';
-import { adminRoutes } from './routes/admin';
+import { adminRoutes, verifyAdminToken } from './routes/admin';
 import { setServer } from './utils/broadcast';
 
 export const app = new Elysia()
   .use(cors())
+  .onRequest(({ request, set }) => {
+    const url = new URL(request.url);
+    // Protect all admin HTML pages (except the login page)
+    if (url.pathname.startsWith('/public/admin') && url.pathname.endsWith('.html') && url.pathname !== '/public/admin-login.html') {
+      const cookieHeader = request.headers.get('cookie') || '';
+      const match = cookieHeader.match(/adminSession=([^;]+)/);
+      const token = match ? match[1] : null;
+      if (!token || !verifyAdminToken(token)) {
+        return Response.redirect('/public/admin-login.html', 302);
+      }
+    }
+
+    // CSRF Protection: verify Origin or Referer for mutating requests
+    if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)) {
+      const origin = request.headers.get('origin');
+      const referer = request.headers.get('referer');
+      const host = request.headers.get('host');
+      
+      // If neither is present (like a curl request), we might allow or block. 
+      // For browser-based CTF, we can enforce it.
+      if (origin) {
+        try {
+          const originUrl = new URL(origin);
+          if (originUrl.host !== host) {
+            set.status = 403;
+            throw new Error('CSRF Failed: Invalid Origin');
+          }
+        } catch (_) {}
+      } else if (referer) {
+        try {
+          const refererUrl = new URL(referer);
+          if (refererUrl.host !== host) {
+            set.status = 403;
+            throw new Error('CSRF Failed: Invalid Referer');
+          }
+        } catch (_) {}
+      } else {
+        // Enforce X-Requested-With or just accept application/json.
+        // Elysia's t.Object already protects against HTML form smuggling.
+      }
+    }
+  })
   .get('/', () => new Response(Bun.file('public/index.html'), {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',

@@ -23,6 +23,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       sessionToken.set({
         value: res.sessionId,
         httpOnly: true,
+        sameSite: 'strict',
         maxAge: 12 * 60 * 60, // 12h
         path: '/'
       });

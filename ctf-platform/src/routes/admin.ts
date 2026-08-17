@@ -20,6 +20,23 @@ import * as path from 'path';
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET || 'mkc';
 
+/**
+ * Generate an HMAC-SHA256 signature of the admin secret.
+ * This is used as the cookie value so the actual secret is never stored client-side.
+ */
+export function signAdminToken(): string {
+  const hasher = new Bun.CryptoHasher('sha256', ADMIN_SECRET);
+  hasher.update('admin-session-token');
+  return hasher.digest('hex');
+}
+
+/**
+ * Verify that a cookie value matches the expected HMAC signature.
+ */
+export function verifyAdminToken(token: string): boolean {
+  return token === signAdminToken();
+}
+
 async function getAdminEventId(queryEventId?: string) {
   if (queryEventId) return parseInt(queryEventId);
   const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
@@ -27,12 +44,39 @@ async function getAdminEventId(queryEventId?: string) {
 }
 
 export const adminRoutes = new Elysia({ prefix: '/api/admin' })
-  .derive(({ headers, set }) => {
-    const authHeader = headers['authorization'];
-    if (authHeader !== `Bearer ${ADMIN_SECRET}`) {
+  // Login/logout endpoints are placed BEFORE the .derive() guard so they are not protected
+  .post('/login', ({ body, cookie: { adminSession }, set }) => {
+    if (body.secret !== ADMIN_SECRET) {
       set.status = 401;
-      throw new Error('Unauthorized Admin Access');
+      return { success: false, error: 'Invalid admin secret' };
     }
+    adminSession.set({
+      value: signAdminToken(),
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 12 * 60 * 60, // 12 hours
+      path: '/'
+    });
+    return { success: true };
+  }, {
+    body: t.Object({ secret: t.String() })
+  })
+  .post('/logout', ({ cookie: { adminSession } }) => {
+    adminSession.remove();
+    return { success: true };
+  })
+  .derive(({ headers, set, cookie: { adminSession } }) => {
+    // Check httpOnly cookie first (browser sessions)
+    if (adminSession.value && verifyAdminToken(adminSession.value as string)) {
+      return; // authenticated via cookie
+    }
+    // Fall back to Authorization header (curl / API usage)
+    const authHeader = headers['authorization'];
+    if (authHeader === `Bearer ${ADMIN_SECRET}`) {
+      return; // authenticated via header
+    }
+    set.status = 401;
+    throw new Error('Unauthorized Admin Access');
   })
   .post('/events', async ({ body }) => {
     const now = new Date();
