@@ -18,7 +18,17 @@ import * as xlsx from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'mkc';
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
+
+if (!ADMIN_SECRET) {
+  console.error('CRITICAL ERROR: ADMIN_SECRET environment variable is not set.');
+  process.exit(1);
+}
+
+if (ADMIN_SECRET.length < 16) {
+  console.error('CRITICAL ERROR: ADMIN_SECRET must be at least 16 characters long for security reasons.');
+  process.exit(1);
+}
 
 /**
  * Generate an HMAC-SHA256 signature of the admin secret.
