@@ -12,6 +12,9 @@ import { db } from '../db';
 import { challenges, solves, events } from '../db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { broadcast } from '../utils/broadcast';
+import { createRateLimiter } from '../utils/rate-limit';
+
+const submitRateLimiter = createRateLimiter({ max: 1, duration: 3000 });
 
 export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
   .get('/leaderboard', async ({ query }) => {
@@ -77,6 +80,7 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
       return { success: false, error: e.message };
     }
   }, {
+    beforeHandle: submitRateLimiter,
     body: t.Object({
       challengeId: t.Number(),
       flag: t.String()
