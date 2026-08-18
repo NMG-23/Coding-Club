@@ -21,8 +21,17 @@ export const app = new Elysia()
   .use(cors())
   .onRequest(({ request, set }) => {
     const url = new URL(request.url);
+    
+    let decodedPath = url.pathname;
+    try {
+      decodedPath = decodeURIComponent(url.pathname);
+    } catch (e) {}
+
     // Protect all admin HTML pages (except the login page)
-    if (url.pathname.startsWith('/public/admin') && url.pathname.endsWith('.html') && url.pathname !== '/public/admin-login.html') {
+    if (
+      decodedPath.startsWith('/public/admin') && 
+      !decodedPath.startsWith('/public/admin-login')
+    ) {
       const cookieHeader = request.headers.get('cookie') || '';
       const match = cookieHeader.match(/adminSession=([^;]+)/);
       const token = match ? match[1] : null;
@@ -40,21 +49,19 @@ export const app = new Elysia()
       // If neither is present (like a curl request), we might allow or block. 
       // For browser-based CTF, we can enforce it.
       if (origin) {
-        try {
-          const originUrl = new URL(origin);
-          if (originUrl.host !== host) {
-            set.status = 403;
-            throw new Error('CSRF Failed: Invalid Origin');
-          }
-        } catch (_) {}
+        let originUrl;
+        try { originUrl = new URL(origin); } catch (_) {}
+        if (!originUrl || originUrl.host !== host) {
+          set.status = 403;
+          throw new Error('CSRF Failed: Invalid Origin');
+        }
       } else if (referer) {
-        try {
-          const refererUrl = new URL(referer);
-          if (refererUrl.host !== host) {
-            set.status = 403;
-            throw new Error('CSRF Failed: Invalid Referer');
-          }
-        } catch (_) {}
+        let refererUrl;
+        try { refererUrl = new URL(referer); } catch (_) {}
+        if (!refererUrl || refererUrl.host !== host) {
+          set.status = 403;
+          throw new Error('CSRF Failed: Invalid Referer');
+        }
       } else {
         // Enforce X-Requested-With or just accept application/json.
         // Elysia's t.Object already protects against HTML form smuggling.
@@ -87,7 +94,31 @@ export const app = new Elysia()
   }))
 
   .ws('/ws', {
-    open(ws) {
+    async open(ws) {
+      const req = (ws.data as any).request;
+      const cookieHeader = req?.headers.get('cookie') || '';
+      
+      const adminMatch = cookieHeader.match(/adminSession=([^;]+)/);
+      const sessionMatch = cookieHeader.match(/sessionToken=([^;]+)/);
+      
+      const adminToken = adminMatch ? adminMatch[1] : null;
+      const sessionToken = sessionMatch ? sessionMatch[1] : null;
+
+      let isAuthenticated = false;
+
+      if (adminToken && verifyAdminToken(adminToken)) {
+        isAuthenticated = true;
+      } else if (sessionToken) {
+        const { ctfService } = await import('./services/ctf.service');
+        const team = await ctfService.validateSession(sessionToken);
+        if (team) isAuthenticated = true;
+      }
+
+      if (!isAuthenticated) {
+        ws.send(JSON.stringify({ error: 'Unauthorized' }));
+        ws.close();
+        return;
+      }
       ws.subscribe('events');
     }
   })

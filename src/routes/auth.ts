@@ -12,6 +12,9 @@ import { ctfService } from '../services/ctf.service';
 import { db } from '../db';
 import { teams, sessions } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { createRateLimiter } from '../utils/rate-limit';
+
+const loginRateLimiter = createRateLimiter({ max: 5, duration: 60000 });
 
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
   .post('/login', async ({ body, request, set, cookie: { sessionToken } }) => {
@@ -23,6 +26,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       sessionToken.set({
         value: res.sessionId,
         httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge: 12 * 60 * 60, // 12h
         path: '/'
@@ -34,6 +38,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       return { success: false, error: error.message };
     }
   }, {
+    beforeHandle: loginRateLimiter,
     body: t.Object({
       teamName: t.String(),
       leaderName: t.String()
