@@ -21,8 +21,17 @@ export const app = new Elysia()
   .use(cors())
   .onRequest(({ request, set }) => {
     const url = new URL(request.url);
+    
+    let decodedPath = url.pathname;
+    try {
+      decodedPath = decodeURIComponent(url.pathname);
+    } catch (e) {}
+
     // Protect all admin HTML pages (except the login page)
-    if (url.pathname.startsWith('/public/admin') && url.pathname.endsWith('.html') && url.pathname !== '/public/admin-login.html') {
+    if (
+      decodedPath.startsWith('/public/admin') && 
+      !decodedPath.startsWith('/public/admin-login')
+    ) {
       const cookieHeader = request.headers.get('cookie') || '';
       const match = cookieHeader.match(/adminSession=([^;]+)/);
       const token = match ? match[1] : null;
