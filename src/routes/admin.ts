@@ -30,21 +30,23 @@ if (ADMIN_SECRET.length < 16) {
   process.exit(1);
 }
 
+import * as crypto from 'crypto';
+
+const activeAdminSessions = new Set<string>();
+
 /**
- * Generate an HMAC-SHA256 signature of the admin secret.
+ * Generate a random admin session token.
  * This is used as the cookie value so the actual secret is never stored client-side.
  */
-export function signAdminToken(): string {
-  const hasher = new Bun.CryptoHasher('sha256', ADMIN_SECRET);
-  hasher.update('admin-session-token');
-  return hasher.digest('hex');
+export function generateAdminSession(): string {
+  return crypto.randomBytes(32).toString('hex');
 }
 
 /**
- * Verify that a cookie value matches the expected HMAC signature.
+ * Verify that a cookie value is a currently active admin session.
  */
 export function verifyAdminToken(token: string): boolean {
-  return token === signAdminToken();
+  return activeAdminSessions.has(token);
 }
 
 async function getAdminEventId(queryEventId?: string) {
@@ -56,12 +58,14 @@ async function getAdminEventId(queryEventId?: string) {
 export const adminRoutes = new Elysia({ prefix: '/api/admin' })
   // Login/logout endpoints are placed BEFORE the .derive() guard so they are not protected
   .post('/login', ({ body, cookie: { adminSession }, set }) => {
-    if (body.secret !== ADMIN_SECRET) {
+    if (!body.secret || body.secret.length !== ADMIN_SECRET.length || !crypto.timingSafeEqual(Buffer.from(body.secret), Buffer.from(ADMIN_SECRET))) {
       set.status = 401;
       return { success: false, error: 'Invalid admin secret' };
     }
+    const sessionId = generateAdminSession();
+    activeAdminSessions.add(sessionId);
     adminSession.set({
-      value: signAdminToken(),
+      value: sessionId,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -73,6 +77,9 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     body: t.Object({ secret: t.String() })
   })
   .post('/logout', ({ cookie: { adminSession } }) => {
+    if (adminSession.value) {
+      activeAdminSessions.delete(adminSession.value as string);
+    }
     adminSession.remove();
     return { success: true };
   })
@@ -83,8 +90,14 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     }
     // Fall back to Authorization header (curl / API usage)
     const authHeader = headers['authorization'];
-    if (authHeader === `Bearer ${ADMIN_SECRET}`) {
-      return; // authenticated via header
+    if (authHeader) {
+      const expectedHeader = `Bearer ${ADMIN_SECRET}`;
+      if (
+        authHeader.length === expectedHeader.length &&
+        crypto.timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedHeader))
+      ) {
+        return; // authenticated via header
+      }
     }
     set.status = 401;
     throw new Error('Unauthorized Admin Access');
