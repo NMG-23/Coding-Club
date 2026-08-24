@@ -32,13 +32,13 @@ export class CtfService {
       )
     ).get();
 
-    if (!teamRecord) throw new Error('Invalid credentials or team not registered for the active event');
-    if (teamRecord.status === 'banned') throw new Error('Team is banned');
+    if (!teamRecord) throw new Error('Login failed');
+    if (teamRecord.status === 'banned') throw new Error('Login failed');
 
     if (teamRecord.activeSessionId) {
       const activeSession = await db.select().from(sessions).where(eq(sessions.id, teamRecord.activeSessionId)).get();
       if (activeSession && activeSession.expiresAt.getTime() > Date.now()) {
-        throw new Error('Active session already in progress');
+        throw new Error('Login failed');
       }
     }
 
@@ -186,6 +186,10 @@ export class CtfService {
         // A smaller timestamp means they reached that score earlier, so they get the higher rank.
         return a.lastSolve - b.lastSolve;
       });
+
+    if (eventStatus.scoreboardFrozen && !adminView) {
+      return { frozen: true };
+    }
 
     return { frozen: eventStatus.scoreboardFrozen, leaderboard };
   }
