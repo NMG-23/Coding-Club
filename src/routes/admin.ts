@@ -68,7 +68,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
       value: sessionId,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 12 * 60 * 60, // 12 hours
       path: '/'
     });

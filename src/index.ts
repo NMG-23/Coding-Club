@@ -18,7 +18,7 @@ import { adminRoutes, verifyAdminToken } from './routes/admin';
 import { setServer } from './utils/broadcast';
 
 export const app = new Elysia()
-  .use(cors())
+  .use(cors({ origin: process.env.FRONTEND_ORIGIN || 'https://your-ctf-domain.com' }))
   .onRequest(({ request, set }) => {
     const url = new URL(request.url);
     
