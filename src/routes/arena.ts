@@ -19,6 +19,7 @@ const submitRateLimiter = createRateLimiter({ max: 1, duration: 3000 });
 export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
   .get('/leaderboard', async ({ query }) => {
     let eventId = query.eventId ? parseInt(query.eventId as string) : null;
+    if (eventId !== null && isNaN(eventId)) return { success: false, error: 'Invalid ID' };
     if (!eventId) {
       // Default to active event
       const activeEvent = await db.select().from(events).where(eq(events.isActive, true)).limit(1).get();
@@ -67,11 +68,14 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
       const res = await ctfService.submitFlag(team.id, body.challengeId, body.flag);
       
       if (res.isCorrect) {
-        if (res.firstBlood) {
-          broadcast('challenge:first_blood', { challengeName: res.challengeName, teamName: team.teamName, eventId: res.eventId });
+        const eventStatus = await ctfService.checkEventStatus(res.eventId);
+        if (!eventStatus.scoreboardFrozen) {
+          if (res.firstBlood) {
+            broadcast('challenge:first_blood', { challengeName: res.challengeName, teamName: team.teamName, eventId: res.eventId });
+          }
+          const lb = await ctfService.getLeaderboard(res.eventId);
+          broadcast('leaderboard:update', lb);
         }
-        const lb = await ctfService.getLeaderboard(res.eventId);
-        broadcast('leaderboard:update', lb);
       }
       
       return { success: true, isCorrect: res.isCorrect, firstBlood: res.firstBlood };
@@ -83,6 +87,6 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
     beforeHandle: submitRateLimiter,
     body: t.Object({
       challengeId: t.Number(),
-      flag: t.String()
+      flag: t.String({ maxLength: 500 })
     })
   });

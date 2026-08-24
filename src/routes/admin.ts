@@ -18,15 +18,15 @@ import * as xlsx from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET;
+const ADMIN_SECRET = process.env.CTF_ADMIN_SECRET;
 
 if (!ADMIN_SECRET) {
-  console.error('CRITICAL ERROR: ADMIN_SECRET environment variable is not set.');
+  console.error('CRITICAL ERROR: CTF_ADMIN_SECRET environment variable is not set.');
   process.exit(1);
 }
 
 if (ADMIN_SECRET.length < 16) {
-  console.error('CRITICAL ERROR: ADMIN_SECRET must be at least 16 characters long for security reasons.');
+  console.error('CRITICAL ERROR: CTF_ADMIN_SECRET must be at least 16 characters long for security reasons.');
   process.exit(1);
 }
 
@@ -68,7 +68,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
       value: sessionId,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 12 * 60 * 60, // 12 hours
       path: '/'
     });
@@ -123,13 +123,14 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     return { success: true, event: newEvent };
   }, {
     body: t.Object({
-      name: t.String(),
-      description: t.String(),
+      name: t.String({ minLength: 1, maxLength: 100 }),
+      description: t.String({ maxLength: 1000 }),
       isActive: t.Boolean()
     })
   })
   .delete('/events/:eventId', async ({ params: { eventId } }) => {
     const id = parseInt(eventId);
+    if (isNaN(id)) return { success: false, error: 'Invalid ID' };
     await db.delete(events).where(eq(events.id, id));
 
     const dir = path.join(process.cwd(), 'uploads', 'events', id.toString());
@@ -346,6 +347,8 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
       const difficulty = normalizedRow['difficulty'] || 'Medium';
       const points = parseInt(normalizedRow['points']) || 100;
 
+      const flagHash = new Bun.CryptoHasher("sha256").update(rawFlag).digest("hex");
+
       await db.insert(challenges).values({
         eventId: eId,
         title,
@@ -353,7 +356,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
         category,
         difficulty,
         points,
-        serverSideFlag: rawFlag
+        serverSideFlag: flagHash
       });
       importedCount++;
     }

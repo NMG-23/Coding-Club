@@ -32,13 +32,13 @@ export class CtfService {
       )
     ).get();
 
-    if (!teamRecord) throw new Error('Invalid credentials or team not registered for the active event');
-    if (teamRecord.status === 'banned') throw new Error('Team is banned');
+    if (!teamRecord) throw new Error('Login failed');
+    if (teamRecord.status === 'banned') throw new Error('Login failed');
 
     if (teamRecord.activeSessionId) {
       const activeSession = await db.select().from(sessions).where(eq(sessions.id, teamRecord.activeSessionId)).get();
       if (activeSession && activeSession.expiresAt.getTime() > Date.now()) {
-        throw new Error('Active session already in progress');
+        throw new Error('Login failed');
       }
     }
 
@@ -60,7 +60,11 @@ export class CtfService {
 
   async validateSession(sessionId: string) {
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    if (!session || session.expiresAt.getTime() < Date.now()) return null;
+    if (!session) return null;
+    if (session.expiresAt.getTime() < Date.now()) {
+      await db.delete(sessions).where(eq(sessions.id, sessionId));
+      return null;
+    }
     const team = await db.select().from(teams).where(eq(teams.id, session.teamId)).get();
     if (team?.activeSessionId !== sessionId) return null;
     return team;
@@ -105,14 +109,14 @@ export class CtfService {
     }
 
     const submittedNorm = flag.trim().toLowerCase();
-    const expectedNorm = challenge.serverSideFlag.trim().toLowerCase();
-    const isCorrect = submittedNorm === expectedNorm;
+    const submittedHash = new Bun.CryptoHasher("sha256").update(submittedNorm).digest("hex");
+    const isCorrect = submittedHash === challenge.serverSideFlag;
     const now = new Date();
 
     await db.insert(submissions).values({
       teamId,
       challengeId,
-      submittedFlag: flag.trim(),
+      submittedFlag: submittedHash,
       isCorrect,
       submittedAt: now
     });
@@ -123,14 +127,16 @@ export class CtfService {
       // Check if the team has already solved this challenge
       const existingSolve = await db.select().from(solves).where(and(eq(solves.teamId, teamId), eq(solves.challengeId, challengeId))).get();
       if (!existingSolve) {
-        // If they haven't, check if ANY team has solved it. If no one has, it's a first blood!
-        const anySolve = await db.select().from(solves).where(eq(solves.challengeId, challengeId)).limit(1).get();
-        if (!anySolve) firstBlood = true;
-        
         // Insert the solve. We use .onConflictDoNothing() in case two requests from the same team arrive at the exact same millisecond
         await db.insert(solves).values({
           teamId, challengeId, points: challenge.points, solvedAt: now
         }).onConflictDoNothing();
+
+        // Check if THIS team's solve is the absolute first (lowest ID for this challenge)
+        const firstSolve = await db.select().from(solves).where(eq(solves.challengeId, challengeId)).orderBy(solves.id).limit(1).get();
+        if (firstSolve && firstSolve.teamId === teamId) {
+          firstBlood = true;
+        }
       }
     }
 
@@ -186,6 +192,10 @@ export class CtfService {
         // A smaller timestamp means they reached that score earlier, so they get the higher rank.
         return a.lastSolve - b.lastSolve;
       });
+
+    if (eventStatus.scoreboardFrozen && !adminView) {
+      return { frozen: true };
+    }
 
     return { frozen: eventStatus.scoreboardFrozen, leaderboard };
   }

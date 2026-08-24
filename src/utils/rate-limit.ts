@@ -1,8 +1,21 @@
+import { app } from '../index';
+
 export const createRateLimiter = ({ max, duration }: { max: number, duration: number }) => {
   const store = new Map<string, { count: number, resetAt: number }>();
   
+  // Clean up expired entries every 60 seconds to prevent memory leaks
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of store.entries()) {
+      if (record.resetAt < now) {
+        store.delete(key);
+      }
+    }
+  }, Math.max(60000, duration));
+  
   return ({ request, set }: any) => {
-    const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
+    // Prevent X-Forwarded-For spoofing by trusting the socket IP when possible
+    const ip = app.server?.requestIP?.(request)?.address || request.headers.get('x-forwarded-for') || '127.0.0.1';
     const now = Date.now();
     
     let record = store.get(ip);
