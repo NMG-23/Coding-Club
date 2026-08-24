@@ -130,6 +130,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
   })
   .delete('/events/:eventId', async ({ params: { eventId } }) => {
     const id = parseInt(eventId);
+    if (isNaN(id)) return { success: false, error: 'Invalid ID' };
     await db.delete(events).where(eq(events.id, id));
 
     const dir = path.join(process.cwd(), 'uploads', 'events', id.toString());
