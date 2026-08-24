@@ -1,3 +1,5 @@
+import { app } from '../index';
+
 export const createRateLimiter = ({ max, duration }: { max: number, duration: number }) => {
   const store = new Map<string, { count: number, resetAt: number }>();
   
@@ -11,9 +13,9 @@ export const createRateLimiter = ({ max, duration }: { max: number, duration: nu
     }
   }, Math.max(60000, duration));
   
-  return ({ request, set, server }: any) => {
+  return ({ request, set }: any) => {
     // Prevent X-Forwarded-For spoofing by trusting the socket IP when possible
-    const ip = server?.requestIP?.(request)?.address || request.headers.get('x-forwarded-for') || '127.0.0.1';
+    const ip = app.server?.requestIP?.(request)?.address || request.headers.get('x-forwarded-for') || '127.0.0.1';
     const now = Date.now();
     
     let record = store.get(ip);

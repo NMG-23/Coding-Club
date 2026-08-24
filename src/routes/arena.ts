@@ -68,11 +68,14 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
       const res = await ctfService.submitFlag(team.id, body.challengeId, body.flag);
       
       if (res.isCorrect) {
-        if (res.firstBlood) {
-          broadcast('challenge:first_blood', { challengeName: res.challengeName, teamName: team.teamName, eventId: res.eventId });
+        const eventStatus = await ctfService.checkEventStatus(res.eventId);
+        if (!eventStatus.scoreboardFrozen) {
+          if (res.firstBlood) {
+            broadcast('challenge:first_blood', { challengeName: res.challengeName, teamName: team.teamName, eventId: res.eventId });
+          }
+          const lb = await ctfService.getLeaderboard(res.eventId);
+          broadcast('leaderboard:update', lb);
         }
-        const lb = await ctfService.getLeaderboard(res.eventId);
-        broadcast('leaderboard:update', lb);
       }
       
       return { success: true, isCorrect: res.isCorrect, firstBlood: res.firstBlood };

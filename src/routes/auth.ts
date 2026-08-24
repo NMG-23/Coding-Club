@@ -13,13 +13,14 @@ import { db } from '../db';
 import { teams, sessions } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { createRateLimiter } from '../utils/rate-limit';
+import { app } from '../index';
 
 const loginRateLimiter = createRateLimiter({ max: 5, duration: 60000 });
 
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
   .post('/login', async ({ body, request, set, server, cookie: { sessionToken } }) => {
     try {
-      const ipAddress = server?.requestIP?.(request)?.address || request.headers.get('x-forwarded-for') || '127.0.0.1';
+      const ipAddress = app.server?.requestIP?.(request)?.address || request.headers.get('x-forwarded-for') || '127.0.0.1';
       const userAgent = request.headers.get('user-agent') || 'unknown';
       const res = await ctfService.login(body.teamName, body.leaderName, ipAddress, userAgent);
       
