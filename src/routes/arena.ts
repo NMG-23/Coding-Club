@@ -83,6 +83,6 @@ export const arenaRoutes = new Elysia({ prefix: '/api/arena' })
     beforeHandle: submitRateLimiter,
     body: t.Object({
       challengeId: t.Number(),
-      flag: t.String()
+      flag: t.String({ maxLength: 500 })
     })
   });

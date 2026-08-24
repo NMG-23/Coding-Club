@@ -105,14 +105,14 @@ export class CtfService {
     }
 
     const submittedNorm = flag.trim().toLowerCase();
-    const expectedNorm = challenge.serverSideFlag.trim().toLowerCase();
-    const isCorrect = submittedNorm === expectedNorm;
+    const submittedHash = new Bun.CryptoHasher("sha256").update(submittedNorm).digest("hex");
+    const isCorrect = submittedHash === challenge.serverSideFlag;
     const now = new Date();
 
     await db.insert(submissions).values({
       teamId,
       challengeId,
-      submittedFlag: flag.trim(),
+      submittedFlag: submittedHash,
       isCorrect,
       submittedAt: now
     });

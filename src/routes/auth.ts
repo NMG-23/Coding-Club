@@ -40,8 +40,8 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
   }, {
     beforeHandle: loginRateLimiter,
     body: t.Object({
-      teamName: t.String(),
-      leaderName: t.String()
+      teamName: t.String({ minLength: 1, maxLength: 100 }),
+      leaderName: t.String({ minLength: 1, maxLength: 100 })
     })
   })
   .post('/logout', async ({ cookie: { sessionToken }, set }) => {

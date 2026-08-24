@@ -123,8 +123,8 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
     return { success: true, event: newEvent };
   }, {
     body: t.Object({
-      name: t.String(),
-      description: t.String(),
+      name: t.String({ minLength: 1, maxLength: 100 }),
+      description: t.String({ maxLength: 1000 }),
       isActive: t.Boolean()
     })
   })
@@ -346,6 +346,8 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
       const difficulty = normalizedRow['difficulty'] || 'Medium';
       const points = parseInt(normalizedRow['points']) || 100;
 
+      const flagHash = new Bun.CryptoHasher("sha256").update(rawFlag).digest("hex");
+
       await db.insert(challenges).values({
         eventId: eId,
         title,
@@ -353,7 +355,7 @@ export const adminRoutes = new Elysia({ prefix: '/api/admin' })
         category,
         difficulty,
         points,
-        serverSideFlag: rawFlag
+        serverSideFlag: flagHash
       });
       importedCount++;
     }
