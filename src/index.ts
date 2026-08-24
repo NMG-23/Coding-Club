@@ -21,6 +21,13 @@ export const app = new Elysia()
   .onError(({ error }) => {
     console.error("ELYSIA ERROR:", error);
   })
+  .onAfterHandle(({ set }) => {
+    set.headers['X-Content-Type-Options'] = 'nosniff';
+    set.headers['X-Frame-Options'] = 'DENY';
+    set.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' ws: wss:;";
+    set.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
+    set.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';
+  })
   .use(cors({ origin: process.env.FRONTEND_ORIGIN || 'https://your-ctf-domain.com' }))
   .onRequest(({ request, set }) => {
     const url = new URL(request.url);
@@ -66,8 +73,11 @@ export const app = new Elysia()
           throw new Error('CSRF Failed: Invalid Referer');
         }
       } else {
-        // Enforce X-Requested-With or just accept application/json.
-        // Elysia's t.Object already protects against HTML form smuggling.
+        const xRequestedWith = request.headers.get('x-requested-with');
+        if (xRequestedWith !== 'XMLHttpRequest') {
+          set.status = 403;
+          throw new Error('CSRF Failed: Missing Origin/Referer and X-Requested-With');
+        }
       }
     }
   })

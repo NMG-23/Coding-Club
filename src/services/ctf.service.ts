@@ -123,14 +123,16 @@ export class CtfService {
       // Check if the team has already solved this challenge
       const existingSolve = await db.select().from(solves).where(and(eq(solves.teamId, teamId), eq(solves.challengeId, challengeId))).get();
       if (!existingSolve) {
-        // If they haven't, check if ANY team has solved it. If no one has, it's a first blood!
-        const anySolve = await db.select().from(solves).where(eq(solves.challengeId, challengeId)).limit(1).get();
-        if (!anySolve) firstBlood = true;
-        
         // Insert the solve. We use .onConflictDoNothing() in case two requests from the same team arrive at the exact same millisecond
         await db.insert(solves).values({
           teamId, challengeId, points: challenge.points, solvedAt: now
         }).onConflictDoNothing();
+
+        // Check if THIS team's solve is the absolute first (lowest ID for this challenge)
+        const firstSolve = await db.select().from(solves).where(eq(solves.challengeId, challengeId)).orderBy(solves.id).limit(1).get();
+        if (firstSolve && firstSolve.teamId === teamId) {
+          firstBlood = true;
+        }
       }
     }
 
