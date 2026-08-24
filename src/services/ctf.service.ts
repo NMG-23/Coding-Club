@@ -60,7 +60,11 @@ export class CtfService {
 
   async validateSession(sessionId: string) {
     const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
-    if (!session || session.expiresAt.getTime() < Date.now()) return null;
+    if (!session) return null;
+    if (session.expiresAt.getTime() < Date.now()) {
+      await db.delete(sessions).where(eq(sessions.id, sessionId));
+      return null;
+    }
     const team = await db.select().from(teams).where(eq(teams.id, session.teamId)).get();
     if (team?.activeSessionId !== sessionId) return null;
     return team;

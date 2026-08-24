@@ -35,8 +35,9 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
 
       return { success: true, teamName: res.teamName };
     } catch (error: any) {
+      console.error("Login Error:", error);
       set.status = 401;
-      return { success: false, error: error.message };
+      return { success: false, error: 'Login failed. Please verify your credentials.' };
     }
   }, {
     beforeHandle: loginRateLimiter,
